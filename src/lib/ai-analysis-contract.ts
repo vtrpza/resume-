@@ -204,24 +204,25 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
               },
               whyItMatters: {
                 type: "string",
-                minLength: 1,
+                minLength: 0,
                 maxLength: 80,
-                description: "OPTIONAL: Why this signal matters for the role.",
+                description:
+                  "Why this signal matters for the role. Use empty string when not applicable.",
               },
               gapType: {
                 type: "string",
-                enum: ["fully_missing", "phrasing", "experience_gap"],
+                enum: ["fully_missing", "phrasing", "experience_gap", "unspecified"],
                 description:
-                  "OPTIONAL: fully_missing = not in resume; phrasing = likely present but not stated; experience_gap = likely real gap.",
+                  "fully_missing = not in resume; phrasing = likely present but not stated; experience_gap = likely real gap; unspecified = when unclear.",
               },
             },
-            required: ["term"],
+            required: ["term", "whyItMatters", "gapType"],
             additionalProperties: false,
           },
           minItems: 0,
           maxItems: 10,
           description:
-            "OPTIONAL: For the most important missing keywords/skills (top 5-8), add term, short whyItMatters, and gapType when clear. Keeps report diagnostic.",
+            "OPTIONAL: For the most important missing keywords/skills (top 5-8), add term, whyItMatters (empty string if not applicable), and gapType (use 'unspecified' when unclear). Keeps report diagnostic.",
         },
         rewriteReasons: {
           type: "array",

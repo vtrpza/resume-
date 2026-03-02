@@ -326,6 +326,7 @@ function validateMissingSignalInsights(value: unknown): MissingSignalInsight[] {
       const s = o.whyItMatters.trim().slice(0, 80);
       if (s.length > 0) insight.whyItMatters = s;
     }
+    // Only set gapType for real classifications; omit when "unspecified" (schema allows it for optional semantics)
     if (typeof o.gapType === "string" && gapTypes.includes(o.gapType as (typeof gapTypes)[number])) {
       insight.gapType = o.gapType as MissingSignalInsight["gapType"];
     }

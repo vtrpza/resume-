@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     const verifyUrl = `${baseUrl}/api/verify-email?token=${encodeURIComponent(token)}`;
 
     const from =
-      process.env.RESEND_FROM?.trim() || "Resume Match <onboarding@resend.dev>";
+      process.env.RESEND_FROM?.trim() || "Resume Match <hi@rsmatch.space>";
 
     const { error } = await resend.emails.send({
       from,
