@@ -12,7 +12,7 @@ import {
   setPremium,
   getOrCreateSessionId,
 } from "@/lib/cookies";
-import { capture, captureFileUpload, captureTextInput, captureScanCompleted, captureScanFailed } from "@/lib/analytics";
+import { capture, captureFileUpload, captureTextInput, captureScanCompleted, captureScanFailed, captureCheckoutCompleted, getFileSizeBucket, getTextLengthBucket } from "@/lib/analytics";
 import { ScanLoadingView } from "@/components/ScanLoadingView";
 import { PageLoadingView } from "@/components/PageLoadingView";
 
@@ -86,8 +86,8 @@ function ScanContent() {
             setShowPaywall(u.scanCount >= 1 + u.purchasedScans);
             if (u.purchasedScans > 0) {
               setPremium();
-              capture("checkout_completed", { source: "redirect" });
-              capture("premium_unlocked", { source: "checkout" });
+              captureCheckoutCompleted({ source: "redirect" });
+              capture("premium_unlocked", { source: "checkout", revenue: 2, currency: "USD" });
             }
           }
         } else if (res) {
@@ -132,11 +132,12 @@ function ScanContent() {
       setLoading(false);
       return;
     }
+    const scanStartedAt = Date.now();
     capture("scan_started", {
       file_size: resume?.size,
-      file_size_bucket: resume ? (resume.size < 100 * 1024 ? "<100KB" : resume.size < 500 * 1024 ? "100-500KB" : resume.size < 1024 * 1024 ? "500KB-1MB" : resume.size < 2 * 1024 * 1024 ? "1-2MB" : resume.size < 5 * 1024 * 1024 ? "2-5MB" : "5MB+") : undefined,
+      file_size_bucket: resume ? getFileSizeBucket(resume.size) : undefined,
       jd_length: jd?.length,
-      jd_length_bucket: jd ? (jd.length < 100 ? "<100" : jd.length < 500 ? "100-500" : jd.length < 1000 ? "500-1K" : jd.length < 2000 ? "1K-2K" : jd.length < 5000 ? "2K-5K" : "5K+") : undefined,
+      jd_length_bucket: jd ? getTextLengthBucket(jd.length) : undefined,
     });
     try {
       const result = await runScan(formData);
@@ -146,15 +147,17 @@ function ScanContent() {
         if (jdTrimmed) sessionStorage.setItem(JD_DRAFT_KEY, jdTrimmed);
         return;
       }
+      const scanDurationMs = Date.now() - scanStartedAt;
       if (result.analysis) {
         captureScanCompleted({
           matchScore: result.analysis.matchScore,
           confidence: result.analysis.confidence,
           extractionQuality: result.analysis.extractionQuality,
           model: result.analysis.model,
+          scanDurationMs,
         });
       } else {
-        capture("scan_completed");
+        capture("scan_completed", { scan_duration_ms: scanDurationMs });
       }
       setFreeScanUsed(); // fallback when DB unavailable
       sessionStorage.setItem("scan_analysis", JSON.stringify(result.analysis));

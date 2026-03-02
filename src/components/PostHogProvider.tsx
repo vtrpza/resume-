@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { getOrCreateSessionId } from "@/lib/cookies";
+import { identifySession } from "@/lib/analytics";
 
 /**
  * PostHog initialization. Loads PostHog script if key is configured.
  * Must be a client component and placed in the root layout.
  * Uses PostHog snippet approach for lean integration.
+ * Identifies the app session so funnel events are attributed to one person per session.
  */
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -30,6 +33,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
           posthog.init(key, {
             api_host: host,
           });
+          identifySession(getOrCreateSessionId());
           if (process.env.NODE_ENV === "development") {
             console.log("PostHog initialized");
           }

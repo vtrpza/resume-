@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import Stripe from "stripe";
 import { creditPurchaseIfNew } from "@/lib/db";
 import { setRoute } from "@/lib/sentry";
+import { captureCheckoutCompletedServer } from "@/lib/analytics-server";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
       const appSessionId = session.metadata?.session_id;
       if (stripeSessionId && appSessionId) {
         await creditPurchaseIfNew(stripeSessionId, appSessionId);
+        await captureCheckoutCompletedServer(appSessionId, { source: "webhook" });
       }
     }
     return NextResponse.json({ received: true });

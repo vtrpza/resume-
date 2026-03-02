@@ -97,6 +97,9 @@ DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
 # Analytics (optional)
 NEXT_PUBLIC_POSTHOG_KEY=ph_xxx
 NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
+# Server-side capture (Stripe webhook); can use same key as NEXT_PUBLIC_POSTHOG_KEY
+# POSTHOG_API_KEY=ph_xxx
+# POSTHOG_HOST=   # optional
 ```
 
 4. **Set up the database** (if using Neon)
@@ -169,11 +172,19 @@ npm run build     # Verify production build
    - `DATABASE_URL` (if using Neon)
    - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SCAN`
    - `NEXT_PUBLIC_APP_URL` (your Vercel deployment URL)
-   - `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` (if using PostHog)
+   - `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` (if using PostHog); `POSTHOG_API_KEY` for server-side conversion capture from Stripe webhook
 4. Configure Stripe webhook:
    - Point webhook URL to `https://your-app.vercel.app/api/webhooks/stripe`
    - Use the webhook secret in `STRIPE_WEBHOOK_SECRET`
    - Set the webhook endpoint to API version `2026-02-25.clover` (or your account default) so events match the app.
+
+### PostHog funnel
+
+All client events include `session_id` and the app identifies by that ID so you can build session-based funnels. Main funnel:
+
+1. `landing_viewed` → 2. `cta_clicked` / `sample_report_viewed` → 3. `scan_started` → 4. `scan_completed` → 5. `result_viewed` → 6. `paywall_viewed` (if not free) → 7. `checkout_started` → 8. `checkout_completed` / `premium_unlocked`
+
+Revenue is sent with `checkout_completed` and `premium_unlocked` (`revenue: 2`, `currency: "USD"`). Conversions are also captured server-side from the Stripe webhook (`source: "webhook"`) so payments are counted even if the user never returns from checkout. In PostHog, create a Funnel with these steps and optionally break down by `session_id` or by person (identified by app session).
 
 ## Current Status
 

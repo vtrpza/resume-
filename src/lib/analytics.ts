@@ -1,21 +1,27 @@
 /**
  * Analytics (PostHog). No-op if key missing.
- * 
- * Core funnel events:
- * - landing_viewed: User views landing page
- * - cta_clicked: User clicks a CTA button
- * - sample_report_viewed: User scrolls to sample report preview
- * - resume_uploaded: User selects a resume file
- * - jd_pasted: User starts entering job description
- * - scan_started: User submits scan form
- * - scan_completed: Scan finishes successfully
- * - scan_failed: Scan fails with error
- * - result_viewed: User views scan results
- * - paywall_viewed: Paywall is shown to user
- * - checkout_started: User initiates checkout
- * - checkout_completed: Checkout completes successfully
- * - premium_unlocked: User gains premium access
+ * All client events are enriched with route, UTM params, and session_id.
+ *
+ * Events (main properties):
+ * - landing_viewed
+ * - cta_clicked: cta
+ * - sample_report_viewed
+ * - resume_uploaded: file_name, file_size, file_size_bucket, file_type
+ * - jd_pasted: text_length, text_length_bucket, input_type
+ * - scan_started: file_size, file_size_bucket, jd_length, jd_length_bucket
+ * - scan_completed: match_score, match_score_bucket, confidence, scan_duration_ms?, ...
+ * - scan_failed: error, error_category, error_type?
+ * - result_viewed: match_score, has_missing_keywords, has_ats_risks, ...
+ * - paywall_viewed
+ * - checkout_started
+ * - checkout_completed: source, revenue, currency
+ * - checkout_failed: error
+ * - premium_unlocked: source, revenue, currency
+ * - export_clicked: format
+ * - cover_letter_generated: (when feature exists)
  */
+
+import { getOrCreateSessionId } from "@/lib/cookies";
 
 const key = typeof window !== "undefined" ? process.env.NEXT_PUBLIC_POSTHOG_KEY : null;
 
@@ -43,9 +49,9 @@ function getUtmParams(): Record<string, string> {
 }
 
 /**
- * Bucket file size for analytics
+ * Bucket file size for analytics (exported for scan_started consistency).
  */
-function getFileSizeBucket(sizeBytes: number): string {
+export function getFileSizeBucket(sizeBytes: number): string {
   if (sizeBytes < 100 * 1024) return "<100KB";
   if (sizeBytes < 500 * 1024) return "100-500KB";
   if (sizeBytes < 1024 * 1024) return "500KB-1MB";
@@ -55,9 +61,9 @@ function getFileSizeBucket(sizeBytes: number): string {
 }
 
 /**
- * Bucket text length for analytics
+ * Bucket text length for analytics (exported for scan_started consistency).
  */
-function getTextLengthBucket(length: number): string {
+export function getTextLengthBucket(length: number): string {
   if (length < 100) return "<100";
   if (length < 500) return "100-500";
   if (length < 1000) return "500-1K";
@@ -100,19 +106,47 @@ function getErrorCategory(error: string | null | undefined): string {
   return "other";
 }
 
+type PostHogWindow = {
+  posthog?: {
+    capture: (e: string, p?: Record<string, unknown>) => void;
+    identify: (distinctId: string) => void;
+  };
+};
+
 /**
- * Capture analytics event with automatic route and UTM tracking
+ * Identify the current user/session in PostHog. Call once when PostHog is ready (e.g. in provider).
+ * Uses app session ID so all events are attributed to one anonymous person per session.
+ */
+export function identifySession(sessionId: string): void {
+  if (!key || !sessionId) return;
+  try {
+    if (typeof window !== "undefined") {
+      const ph = (window as unknown as PostHogWindow).posthog;
+      if (ph?.identify) ph.identify(sessionId);
+    }
+  } catch {
+    // no-op
+  }
+}
+
+/**
+ * Capture analytics event with automatic route, UTM, and session_id
  */
 export function capture(event: string, properties?: Record<string, unknown>): void {
   if (!key) return;
   try {
-    if (typeof window !== "undefined" && (window as unknown as { posthog?: { capture: (e: string, p?: Record<string, unknown>) => void } }).posthog) {
-      const enriched = {
-        ...properties,
-        route: getRoute(),
-        ...getUtmParams(),
-      };
-      (window as unknown as { posthog: { capture: (e: string, p?: Record<string, unknown>) => void } }).posthog.capture(event, enriched);
+    if (typeof window !== "undefined") {
+      const ph = (window as unknown as PostHogWindow).posthog;
+      if (ph) {
+        const sessionId = getOrCreateSessionId();
+        const enriched = {
+          ...properties,
+          ...(sessionId && { session_id: sessionId }),
+          route: getRoute(),
+          ...getUtmParams(),
+        };
+        ph.capture(event, enriched);
+      }
     }
   } catch {
     // no-op
@@ -144,13 +178,14 @@ export function captureTextInput(text: string, inputType: "jd" | "other"): void 
 }
 
 /**
- * Helper to capture scan completion with analysis metadata
+ * Helper to capture scan completion with analysis metadata and optional duration.
  */
 export function captureScanCompleted(analysis: {
   matchScore?: number;
   confidence?: number;
   extractionQuality?: string;
   model?: string;
+  scanDurationMs?: number;
 }): void {
   const props: Record<string, unknown> = {};
   if (typeof analysis.matchScore === "number") {
@@ -167,6 +202,9 @@ export function captureScanCompleted(analysis: {
   if (analysis.model) {
     props.model = analysis.model;
   }
+  if (typeof analysis.scanDurationMs === "number") {
+    props.scan_duration_ms = analysis.scanDurationMs;
+  }
   capture("scan_completed", props);
 }
 
@@ -178,6 +216,17 @@ export function captureScanFailed(error: string | null | undefined, context?: Re
     error: error || "Unknown error",
     error_category: getErrorCategory(error),
     ...context,
+  });
+}
+
+/**
+ * Helper to capture checkout completion with revenue (client-side, e.g. redirect).
+ */
+export function captureCheckoutCompleted(props: { source: string; revenue?: number; currency?: string }): void {
+  capture("checkout_completed", {
+    source: props.source,
+    revenue: props.revenue ?? 2,
+    currency: props.currency ?? "USD",
   });
 }
 

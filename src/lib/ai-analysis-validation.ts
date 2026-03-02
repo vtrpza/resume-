@@ -229,7 +229,7 @@ function filterAtsRisks(risks: string[]): string[] {
   ];
 
   // Filter out generic phrases
-  let filtered = risks.filter((risk) => {
+  const filtered = risks.filter((risk) => {
     const trimmed = risk.trim().toLowerCase();
     return !genericPatterns.some((pattern) => pattern.test(trimmed));
   });
