@@ -13,6 +13,8 @@ import {
   getOrCreateSessionId,
 } from "@/lib/cookies";
 import { capture, captureFileUpload, captureTextInput, captureScanCompleted, captureScanFailed } from "@/lib/analytics";
+import { ScanLoadingView } from "@/components/ScanLoadingView";
+import { PageLoadingView } from "@/components/PageLoadingView";
 
 const LOADING_STEPS = [
   "Reading your resume…",
@@ -29,12 +31,26 @@ function ScanContent() {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [showPaywall, setShowPaywall] = useState<boolean | null>(null);
+  const [usageError, setUsageError] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setRoute("scan");
+  }, []);
+
+  const JD_DRAFT_KEY = "scan_jd_draft";
+
+  // Prefill JD from draft after scan error
+  useEffect(() => {
+    const draft = sessionStorage.getItem(JD_DRAFT_KEY);
+    if (!draft) return;
+    sessionStorage.removeItem(JD_DRAFT_KEY);
+    const ta = document.getElementById("jd");
+    if (ta && ta instanceof HTMLTextAreaElement && !ta.value.trim()) {
+      ta.value = draft;
+    }
   }, []);
 
   // Step-based loading progress
@@ -55,32 +71,52 @@ function ScanContent() {
     const sessionId = getOrCreateSessionId();
     async function check() {
       if (searchParams.get("success") === "1") {
-        const u = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).then((r) => r.json());
-        if (u && typeof u.purchasedScans === "number" && u.purchasedScans > 0) {
-          setPremium();
-          capture("checkout_completed", { source: "redirect" });
-          capture("premium_unlocked", { source: "checkout" });
+        const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`);
+        if (res.ok) {
+          const u = await res.json();
+          if (u && typeof u.purchasedScans === "number" && u.purchasedScans > 0) {
+            setPremium();
+            capture("checkout_completed", { source: "redirect" });
+            capture("premium_unlocked", { source: "checkout" });
+          }
         }
         router.replace("/scan", { scroll: false });
       }
-      const u = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).then((r) => r.json()).catch(() => null);
-      if (!cancelled) {
-        if (u && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
+
+      const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`).catch(() => null);
+      if (cancelled) return;
+      if (!res || res.status === 503 || res.status >= 500) {
+        setUsageError(!!res);
+        setShowPaywall(false);
+        return;
+      }
+      setUsageError(false);
+      if (res.ok) {
+        const u = await res.json().catch(() => null);
+        if (u != null && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
           setShowPaywall(u.scanCount >= 1 + u.purchasedScans);
-        } else {
-          setShowPaywall(shouldShowPaywall());
+          return;
         }
       }
+      setShowPaywall(shouldShowPaywall());
     }
     check();
     return () => { cancelled = true; };
   }, [searchParams, router]);
+
+  const MIN_JD_LENGTH = 50;
 
   async function handleSubmit(formData: FormData) {
     setError(null);
     setLoading(true);
     const resume = formData.get("resume") as File | null;
     const jd = formData.get("jd") as string | null;
+    const jdTrimmed = (jd ?? "").trim();
+    if (jdTrimmed.length < MIN_JD_LENGTH) {
+      setError("Please paste a longer job description so we can give you useful feedback.");
+      setLoading(false);
+      return;
+    }
     capture("scan_started", {
       file_size: resume?.size,
       file_size_bucket: resume ? (resume.size < 100 * 1024 ? "<100KB" : resume.size < 500 * 1024 ? "100-500KB" : resume.size < 1024 * 1024 ? "500KB-1MB" : resume.size < 2 * 1024 * 1024 ? "1-2MB" : resume.size < 5 * 1024 * 1024 ? "2-5MB" : "5MB+") : undefined,
@@ -92,13 +128,15 @@ function ScanContent() {
       if (!result.ok) {
         setError(result.error ?? "Something went wrong");
         captureScanFailed(result.error);
+        if (jdTrimmed) sessionStorage.setItem(JD_DRAFT_KEY, jdTrimmed);
         return;
       }
       if (result.analysis) {
         captureScanCompleted({
           matchScore: result.analysis.matchScore,
-          // Note: confidence and extractionQuality would come from actual analysis
-          // For now, we'll add them when the real implementation is in place
+          confidence: result.analysis.confidence,
+          extractionQuality: result.analysis.extractionQuality,
+          model: result.analysis.model,
         });
       } else {
         capture("scan_completed");
@@ -111,6 +149,7 @@ function ScanContent() {
         error_type: "exception",
       });
       setError("Something went wrong. Please try again.");
+      if (jdTrimmed) sessionStorage.setItem(JD_DRAFT_KEY, jdTrimmed);
     } finally {
       setLoading(false);
     }
@@ -132,10 +171,22 @@ function ScanContent() {
     }
   }
 
-  if (showPaywall === null) {
+  if (showPaywall === null && !usageError) {
+    return <PageLoadingView variant="scan" />;
+  }
+
+  if (usageError) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
-        <p className="text-zinc-400">Loading…</p>
+        <Link
+          href="/"
+          className="-mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
+        >
+          ← Back
+        </Link>
+        <p className="mt-4 text-zinc-300">
+          Usage check unavailable. Please try again later.
+        </p>
       </main>
     );
   }
@@ -198,14 +249,23 @@ function ScanContent() {
       >
         ← Back
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
-        Scan your resume
-      </h1>
-      <p className="mt-2 text-zinc-400">
-        Upload your resume (PDF) and paste the job description. Your data is processed securely and not stored.
-      </p>
 
-      <form action={handleSubmit} className="mt-8 space-y-6 sm:space-y-8">
+      {loading && (
+        <ScanLoadingView loadingStep={loadingStep} steps={LOADING_STEPS} />
+      )}
+
+      <div
+        aria-hidden={loading}
+        className={loading ? "absolute h-0 w-0 overflow-hidden opacity-0 pointer-events-none" : undefined}
+      >
+        <h1 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
+          Scan your resume
+        </h1>
+        <p className="mt-2 text-zinc-400">
+          Upload your resume (PDF) and paste the job description. Your data is processed securely and not stored.
+        </p>
+
+        <form action={handleSubmit} className="mt-8 space-y-6 sm:space-y-8">
         <input
           type="hidden"
           name="sessionId"
@@ -314,20 +374,16 @@ function ScanContent() {
               "Run scan"
             )}
           </button>
-          {loading && (
-            <p className="mt-3 text-xs text-zinc-500">
-              Step {loadingStep + 1} of {LOADING_STEPS.length}. Usually 10–20 seconds.
-            </p>
-          )}
         </div>
       </form>
+      </div>
     </main>
   );
 }
 
 export default function ScanPage() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12"><p className="text-zinc-400">Loading…</p></main>}>
+    <Suspense fallback={<PageLoadingView variant="suspense" />}>
       <ScanContent />
     </Suspense>
   );

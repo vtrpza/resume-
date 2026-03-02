@@ -109,6 +109,13 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           description:
             "Quality of text extraction from PDF. 'high' = clean, structured text. 'medium' = some formatting issues but readable. 'low' = significant parsing problems, missing sections, garbled text.",
         },
+        matchScoreReasoning: {
+          type: "string",
+          minLength: 20,
+          maxLength: 200,
+          description:
+            "Optional 1-2 sentence explanation of why the match score was assigned. E.g. 'Strong keyword overlap in React and TypeScript; experience level aligns; minor ATS formatting risks.'",
+        },
       },
       required: [
         "matchScore",
@@ -139,6 +146,7 @@ export interface ScanAnalysis {
   tailoredSummary: string;
   confidence: number; // 0-1
   extractionQuality: "high" | "medium" | "low";
+  matchScoreReasoning?: string; // optional 20-200 chars
 }
 
 // ============================================================================
@@ -159,7 +167,7 @@ CRITICAL RULES:
 5. Confidence score must reflect actual extraction quality and content clarity.
 
 OUTPUT REQUIREMENTS:
-- matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%).
+- matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%). Optionally include matchScoreReasoning (20-200 chars) with a brief justification.
 - missingKeywords: Exact terms from JD that are absent or not clearly present in resume. Include technical terms, tools, frameworks.
 - missingSkills: Skills explicitly required in JD but not evidenced in resume. Must be mentioned in JD.
 - atsRisks: Specific, actionable ATS parsing issues. Be concrete: "Two-column layout", "Missing skills section", "Non-standard date format".

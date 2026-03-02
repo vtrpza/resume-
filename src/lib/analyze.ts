@@ -20,6 +20,25 @@ export interface AnalysisResult extends ScanAnalysis {
   model?: string;
 }
 
+/** Resume context from pipeline for prompt and confidence adjustment. */
+export interface ResumeContext {
+  charCount: number;
+  isEmpty: boolean;
+  isGarbled: boolean;
+  isVeryLong: boolean;
+  isNonEnglish: boolean;
+}
+
+function formatResumeContextNote(ctx: ResumeContext): string {
+  const parts: string[] = [];
+  if (ctx.isEmpty) parts.push("resume is very short");
+  if (ctx.isGarbled) parts.push("extraction may be garbled");
+  if (ctx.isVeryLong) parts.push("very long (truncated)");
+  if (ctx.isNonEnglish) parts.push("resume may be non-English");
+  if (parts.length === 0) return "";
+  return `\nNote: ${parts.join("; ")}. Set confidence and extractionQuality accordingly.`;
+}
+
 /**
  * Call OpenAI and parse/validate response. Returns validated ScanAnalysis or null on parse/validation failure.
  */
@@ -27,11 +46,19 @@ async function callAnalysis(
   openai: OpenAI,
   resumeText: string,
   jobDescription: string,
-  options: { model: string; systemPrompt: string }
+  options: {
+    model: string;
+    systemPrompt: string;
+    resumeContext?: ResumeContext;
+  }
 ): Promise<ScanAnalysis | null> {
   const truncatedResume = resumeText.slice(0, 12000);
   const truncatedJd = jobDescription.slice(0, 8000);
-  const userContent = buildAnalysisPrompt(truncatedResume, truncatedJd);
+  let userContent = buildAnalysisPrompt(truncatedResume, truncatedJd);
+  if (options.resumeContext) {
+    const note = formatResumeContextNote(options.resumeContext);
+    if (note) userContent += note;
+  }
 
   const response = await openai.chat.completions.create({
     model: options.model,
@@ -63,7 +90,8 @@ async function callAnalysis(
  */
 export async function analyzeResume(
   resumeText: string,
-  jobDescription: string
+  jobDescription: string,
+  options?: { resumeContext?: ResumeContext }
 ): Promise<AnalysisResult> {
   setScanStage("llm_analysis");
   setScanContext({ model: DEFAULT_MODEL });
@@ -76,6 +104,9 @@ export async function analyzeResume(
   }
 
   const openai = new OpenAI({ apiKey });
+  const callOpts = {
+    resumeContext: options?.resumeContext,
+  };
   let lastError: Error | null = null;
 
   // 1. Try default model up to maxRetries
@@ -85,6 +116,7 @@ export async function analyzeResume(
       const result = await callAnalysis(openai, resumeText, jobDescription, {
         model: DEFAULT_MODEL,
         systemPrompt: ANALYSIS_SYSTEM_PROMPT,
+        ...callOpts,
       });
 
       if (result && !shouldUseFallback(result, null, attempt)) {
@@ -98,6 +130,7 @@ export async function analyzeResume(
           const fallbackResult = await callAnalysis(openai, resumeText, jobDescription, {
             model: FALLBACK_MODEL,
             systemPrompt: FALLBACK_SYSTEM_PROMPT,
+            ...callOpts,
           });
           if (fallbackResult) {
             setScanContext({ model: FALLBACK_MODEL, analysisValid: true });
@@ -128,6 +161,7 @@ export async function analyzeResume(
     const fallbackResult = await callAnalysis(openai, resumeText, jobDescription, {
       model: FALLBACK_MODEL,
       systemPrompt: FALLBACK_SYSTEM_PROMPT,
+      ...callOpts,
     });
     if (fallbackResult) {
       setScanContext({ model: FALLBACK_MODEL, analysisValid: true });

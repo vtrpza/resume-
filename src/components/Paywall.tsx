@@ -95,8 +95,8 @@ export function Paywall({
           >
             {isBusy ? (
               <span className="flex items-center justify-center gap-3">
-                <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent" />
-                <span>Processing…</span>
+                <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent" aria-hidden />
+                <span>Redirecting to checkout…</span>
               </span>
             ) : (
               "Pay $2 — one-time"

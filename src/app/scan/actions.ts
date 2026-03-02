@@ -5,8 +5,10 @@ import { headers } from "next/headers";
 import { setScanStage, setScanContext, captureScanError } from "@/lib/sentry";
 import { extractTextFromPdf } from "@/lib/pdf";
 import { analyzeResume, type AnalysisResult } from "@/lib/analyze";
+import { detectEdgeCases, adjustConfidenceForEdgeCases } from "@/lib/ai-analysis-validation";
 import { FAILURE_MODES } from "@/lib/ai-analysis-contract";
 import { getOrCreateAndIncrementScan } from "@/lib/db";
+import { isFullAppEnabled, isDatabaseAvailable } from "@/lib/feature-config";
 
 interface ScanResult {
   ok: boolean;
@@ -62,6 +64,14 @@ export async function runScan(formData: FormData): Promise<ScanResult> {
         return { ok: false, error: "Resume and job description are required." };
       }
 
+      const jdTrimmed = jd.trim();
+      if (jdTrimmed.length < 50) {
+        return {
+          ok: false,
+          error: "Please paste a longer job description so we can give you useful feedback.",
+        };
+      }
+
       if (resume.size > 5 * 1024 * 1024) {
         return { ok: false, error: "Resume must be under 5 MB." };
       }
@@ -70,8 +80,15 @@ export async function runScan(formData: FormData): Promise<ScanResult> {
 
       const sessionId = (formData.get("sessionId") as string | null)?.trim() || null;
 
+      if (isFullAppEnabled() && !isDatabaseAvailable()) {
+        return {
+          ok: false,
+          error: "Service temporarily unavailable. Database is not configured.",
+        };
+      }
+
       try {
-        const result = await runScanPipeline(resume, jd.trim());
+        const result = await runScanPipeline(resume, jdTrimmed);
         if (result.ok && sessionId) {
           await getOrCreateAndIncrementScan(sessionId);
         }
@@ -92,8 +109,16 @@ async function runScanPipeline(resume: File, jd: string): Promise<ScanResult> {
   const buffer = Buffer.from(await resume.arrayBuffer());
   const resumeText = await extractTextFromPdf(buffer);
 
+  const edgeCases = detectEdgeCases(resumeText);
+  const resumeContext = {
+    ...edgeCases,
+    charCount: resumeText.length,
+  };
+
   setScanStage("llm_analysis");
-  const analysis = await analyzeResume(resumeText, jd);
+  const analysis = await analyzeResume(resumeText, jd, { resumeContext });
+
+  analysis.confidence = adjustConfidenceForEdgeCases(analysis.confidence, edgeCases);
 
   return {
     ok: true,

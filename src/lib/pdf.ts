@@ -1,8 +1,18 @@
 import { setScanStage, captureScanError } from "./sentry";
 
 /**
+ * Light normalization of extracted PDF text: collapse runs of spaces/newlines to a single space.
+ * Keeps meaning intact while reducing noise for the LLM.
+ */
+function normalizeExtractedText(text: string): string {
+  return text
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Extract plain text from a PDF buffer.
- * Uses pdf-parse (Node.js). Returns trimmed string or throws.
+ * Uses pdf-parse (Node.js). Returns normalized, trimmed string or throws.
  */
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   setScanStage("pdf_extract");
@@ -12,7 +22,7 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
     const text = typeof data?.text === "string" ? data.text : "";
     const trimmed = text.trim();
     if (!trimmed) throw new Error("No text extracted from PDF");
-    return trimmed;
+    return normalizeExtractedText(trimmed);
   } catch (err) {
     captureScanError(err, { stage: "pdf_extract", code: "pdf_parse_failed" });
     throw err;

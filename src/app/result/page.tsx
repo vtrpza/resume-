@@ -4,9 +4,12 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { setRoute } from "@/lib/sentry";
 import { capture, captureResultViewed } from "@/lib/analytics";
+import type { ScanAnalysis } from "@/lib/ai-analysis-contract";
+import { validateAndNormalizeAnalysis } from "@/lib/ai-analysis-validation";
+import { PageLoadingView } from "@/components/PageLoadingView";
 
 export default function ResultPage() {
-  const [analysis, setAnalysis] = useState<unknown | null | undefined>(undefined);
+  const [analysis, setAnalysis] = useState<ScanAnalysis | null | undefined>(undefined);
 
   useEffect(() => {
     setRoute("result");
@@ -14,13 +17,15 @@ export default function ResultPage() {
 
   useEffect(() => {
     const analysisJson = sessionStorage.getItem("scan_analysis");
-    if (analysisJson) {
-      try {
-        setAnalysis(JSON.parse(analysisJson) as unknown);
-      } catch {
-        setAnalysis(null);
-      }
-    } else {
+    if (!analysisJson) {
+      setAnalysis(null);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(analysisJson) as unknown;
+      const validated = validateAndNormalizeAnalysis(parsed);
+      setAnalysis(validated ?? null);
+    } catch {
       setAnalysis(null);
     }
   }, []);
@@ -28,24 +33,16 @@ export default function ResultPage() {
   const resultViewedSent = useRef(false);
   useEffect(() => {
     if (analysis == null || resultViewedSent.current) return;
-    const data = analysis as Record<string, unknown>;
     resultViewedSent.current = true;
     captureResultViewed({
-      matchScore: typeof data.matchScore === "number" ? data.matchScore : undefined,
-      missingKeywords: Array.isArray(data.missingKeywords) ? data.missingKeywords : undefined,
-      atsRisks: Array.isArray(data.atsRisks) ? data.atsRisks : undefined,
+      matchScore: analysis.matchScore,
+      missingKeywords: analysis.missingKeywords,
+      atsRisks: analysis.atsRisks,
     });
   }, [analysis]);
 
   if (analysis === undefined) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
-        <div className="flex flex-col items-center gap-4 py-8">
-          <span className="h-8 w-8 shrink-0 animate-spin rounded-full border-2 border-zinc-700 border-t-transparent" />
-          <p className="text-zinc-400">Loading your report…</p>
-        </div>
-      </main>
-    );
+    return <PageLoadingView variant="result" showSkeleton />;
   }
 
   if (analysis === null) {
@@ -77,6 +74,9 @@ export default function ResultPage() {
       <p className="mt-2 text-sm text-zinc-400">
         Review your match score, gaps, and improvement suggestions below.
       </p>
+      <div className="mt-4">
+        <ExportReportButton analysis={analysis} />
+      </div>
 
       <AnalysisView data={analysis} />
 
@@ -96,6 +96,65 @@ export default function ResultPage() {
         </Link>
       </div>
     </main>
+  );
+}
+
+function buildReportMarkdown(analysis: ScanAnalysis): string {
+  const lines: string[] = [
+    "# Resume Match Report",
+    "",
+    `## Match score: ${analysis.matchScore}%`,
+    "",
+  ];
+  if (analysis.matchScoreReasoning) {
+    lines.push(analysis.matchScoreReasoning, "");
+  }
+  lines.push("## Gaps to close", "");
+  if (analysis.missingKeywords.length > 0) {
+    lines.push("### Missing keywords", "", ...analysis.missingKeywords.map((k) => `- ${k}`), "");
+  }
+  if (analysis.missingSkills.length > 0) {
+    lines.push("### Missing skills", "", ...analysis.missingSkills.map((s) => `- ${s}`), "");
+  }
+  if (analysis.missingKeywords.length === 0 && analysis.missingSkills.length === 0) {
+    lines.push("No major keyword or skill gaps identified.", "");
+  }
+  lines.push("## ATS risk flags", "");
+  if (analysis.atsRisks.length > 0) {
+    lines.push(...analysis.atsRisks.map((r) => `- ${r}`), "");
+  } else {
+    lines.push("No ATS risk flags identified.", "");
+  }
+  if (analysis.weakBullets.length > 0 && analysis.rewrittenBullets.length === analysis.weakBullets.length) {
+    lines.push("## Bullet improvements", "");
+    analysis.weakBullets.forEach((weak, i) => {
+      lines.push("**Original:**", weak, "", "**Suggested:**", analysis.rewrittenBullets[i] ?? "", "");
+    });
+  }
+  lines.push("## Tailored summary", "", analysis.tailoredSummary);
+  return lines.join("\n");
+}
+
+function ExportReportButton({ analysis }: { analysis: ScanAnalysis }) {
+  const handleExport = useCallback(() => {
+    const md = buildReportMarkdown(analysis);
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "resume-match-report.md";
+    a.click();
+    URL.revokeObjectURL(url);
+    capture("export_clicked", { format: "md" });
+  }, [analysis]);
+  return (
+    <button
+      type="button"
+      onClick={handleExport}
+      className="focus-ring active:opacity-90 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700"
+    >
+      Export report (MD)
+    </button>
   );
 }
 
@@ -119,11 +178,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AnalysisView({ data }: { data: unknown }) {
-  const d = data as Record<string, unknown>;
+function AnalysisView({ data }: { data: ScanAnalysis }) {
   const [copied, setCopied] = useState(false);
-  const summary =
-    typeof d.tailoredSummary === "string" ? d.tailoredSummary : "";
+  const [copiedBulletIndex, setCopiedBulletIndex] = useState<number | null>(null);
+  const summary = data.tailoredSummary;
 
   const handleCopySummary = useCallback(async () => {
     if (!summary) return;
@@ -137,21 +195,30 @@ function AnalysisView({ data }: { data: unknown }) {
     }
   }, [summary]);
 
-  const weakBullets = Array.isArray(d.weakBullets) ? d.weakBullets as string[] : [];
-  const rewrittenBullets = Array.isArray(d.rewrittenBullets)
-    ? (d.rewrittenBullets as string[])
-    : [];
+  const handleCopyBullet = useCallback(async (text: string, index: number) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedBulletIndex(index);
+      capture("bullet_copied", { index });
+      setTimeout(() => setCopiedBulletIndex(null), 2000);
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  const weakBullets = data.weakBullets;
+  const rewrittenBullets = data.rewrittenBullets;
   const canPair =
     weakBullets.length > 0 &&
     rewrittenBullets.length > 0 &&
     weakBullets.length === rewrittenBullets.length;
 
   const showLowQualityNotice =
-    d.extractionQuality === "low" ||
-    (typeof d.confidence === "number" && d.confidence < 0.7);
+    data.extractionQuality === "low" || data.confidence < 0.7;
 
-  const score = typeof d.matchScore === "number" ? d.matchScore : null;
-  const band = score !== null ? scoreBand(score) : null;
+  const score = data.matchScore;
+  const band = scoreBand(score);
 
   return (
     <div className="mt-8 space-y-8">
@@ -163,8 +230,7 @@ function AnalysisView({ data }: { data: unknown }) {
       )}
 
       {/* Match score hero */}
-      {score !== null && band && (
-        <section className={`${scoreCardClass} ring-2 ${band.ring}`}>
+      <section className={`${scoreCardClass} ring-2 ${band.ring}`}>
           <h2 className="text-sm font-medium text-zinc-500 mb-4">Match score</h2>
           <div className="flex flex-col items-center py-4 sm:py-6">
             <p className="text-5xl font-bold tracking-tight text-white sm:text-6xl">
@@ -176,70 +242,83 @@ function AnalysisView({ data }: { data: unknown }) {
             <p className="mt-4 text-sm text-zinc-300 text-center max-w-sm">
               {band.label}
             </p>
+            {data.matchScoreReasoning && (
+              <p className="mt-3 text-xs text-zinc-500 text-center max-w-md">
+                {data.matchScoreReasoning}
+              </p>
+            )}
           </div>
         </section>
-      )}
 
       {/* Gaps to close */}
-      {(Array.isArray(d.missingKeywords) && d.missingKeywords.length > 0) ||
-       (Array.isArray(d.missingSkills) && d.missingSkills.length > 0) ? (
-        <div className="space-y-5">
-          <SectionLabel>Gaps to close</SectionLabel>
-          {Array.isArray(d.missingKeywords) && d.missingKeywords.length > 0 && (
-            <section className={cardClass}>
-              <h2 className="text-sm font-medium text-zinc-400">
-                Missing keywords
-              </h2>
-              <p className="mt-1 text-xs text-zinc-500">
-                Terms from the job description not in your resume. Adding them where they fit can improve ATS compatibility.
-              </p>
-              <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
-                {(d.missingKeywords as string[]).map((k, i) => (
-                  <li key={i}>{k}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {Array.isArray(d.missingSkills) && d.missingSkills.length > 0 && (
-            <section className={cardClass}>
-              <h2 className="text-sm font-medium text-zinc-400">
-                Missing skills
-              </h2>
-              <p className="mt-1 text-xs text-zinc-500">
-                Skills the job requires that aren&apos;t clearly present. Only add skills you actually have.
-              </p>
-              <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
-                {(d.missingSkills as string[]).map((s, i) => (
-                  <li key={i}>{s}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </div>
-      ) : null}
+      <div className="space-y-5">
+        <SectionLabel>Gaps to close</SectionLabel>
+        {data.missingKeywords.length > 0 || data.missingSkills.length > 0 ? (
+          <>
+            {data.missingKeywords.length > 0 && (
+              <section className={cardClass}>
+                <h2 className="text-sm font-medium text-zinc-400">
+                  Missing keywords
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Terms from the job description not in your resume. Adding them where they fit can improve ATS compatibility.
+                </p>
+                <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
+                  {data.missingKeywords.map((k, i) => (
+                    <li key={i}>{k}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {data.missingSkills.length > 0 && (
+              <section className={cardClass}>
+                <h2 className="text-sm font-medium text-zinc-400">
+                  Missing skills
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Skills the job requires that aren&apos;t clearly present. Only add skills you actually have.
+                </p>
+                <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
+                  {data.missingSkills.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-zinc-400">
+            No major keyword or skill gaps identified.
+          </p>
+        )}
+      </div>
 
       {/* Risks to fix */}
-      {Array.isArray(d.atsRisks) && d.atsRisks.length > 0 && (
-        <div className="space-y-5">
-          <SectionLabel>Risks to fix</SectionLabel>
-          <section className={cardClass}>
-            <h2 className="text-sm font-medium text-zinc-400">
-              ATS risk flags
-            </h2>
-            <p className="mt-1 text-xs text-zinc-500">
-              Formatting or content issues that could affect how applicant tracking systems read your resume.
-            </p>
+      <div className="space-y-5">
+        <SectionLabel>Risks to fix</SectionLabel>
+        <section className={cardClass}>
+          <h2 className="text-sm font-medium text-zinc-400">
+            ATS risk flags
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Formatting or content issues that could affect how applicant tracking systems read your resume.
+          </p>
+          {data.atsRisks.length > 0 ? (
             <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
-              {(d.atsRisks as string[]).map((r, i) => (
+              {data.atsRisks.map((r, i) => (
                 <li key={i}>{r}</li>
               ))}
             </ul>
-          </section>
-        </div>
-      )}
+          ) : (
+            <p className="mt-3 text-sm text-zinc-400">
+              No ATS risk flags identified.
+            </p>
+          )}
+        </section>
+      </div>
 
       {/* Improvements */}
-      {(canPair || weakBullets.length > 0 || rewrittenBullets.length > 0) && (
+      {(canPair || weakBullets.length > 0 || rewrittenBullets.length > 0) ? (
         <div className="space-y-5">
           <SectionLabel>Improvements</SectionLabel>
           {canPair ? (
@@ -255,7 +334,16 @@ function AnalysisView({ data }: { data: unknown }) {
                   <li key={i} className="space-y-2 border-t border-zinc-800 pt-5 first:border-t-0 first:pt-0">
                     <p className="text-xs font-medium text-zinc-500">Original</p>
                     <p className="text-zinc-400 line-through">{weak}</p>
-                    <p className="text-xs font-medium text-zinc-500 mt-3">Suggested</p>
+                    <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+                      <p className="text-xs font-medium text-zinc-500">Suggested</p>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyBullet(rewrittenBullets[i], i)}
+                        className="focus-ring active:opacity-90 shrink-0 rounded border border-zinc-600 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
+                      >
+                        {copiedBulletIndex === i ? "✓ Copied" : "Copy"}
+                      </button>
+                    </div>
                     <p className="text-zinc-300">{rewrittenBullets[i]}</p>
                   </li>
                 ))}
@@ -286,7 +374,7 @@ function AnalysisView({ data }: { data: unknown }) {
             </>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Summary */}
       {summary && (

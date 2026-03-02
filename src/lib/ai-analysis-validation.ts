@@ -56,6 +56,13 @@ export function validateAndNormalizeAnalysis(
     obj.extractionQuality
   ) as "high" | "medium" | "low";
 
+  // Optional matchScoreReasoning (20-200 chars)
+  let matchScoreReasoning: string | undefined;
+  if (typeof obj.matchScoreReasoning === "string") {
+    const s = obj.matchScoreReasoning.trim().slice(0, 200);
+    if (s.length >= 20) matchScoreReasoning = s;
+  }
+
   return {
     matchScore,
     missingKeywords,
@@ -66,6 +73,7 @@ export function validateAndNormalizeAnalysis(
     tailoredSummary,
     confidence,
     extractionQuality,
+    ...(matchScoreReasoning !== undefined && { matchScoreReasoning }),
   };
 }
 
