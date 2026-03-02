@@ -10,6 +10,9 @@ import {
   normalizeMatchScore,
 } from "./ai-analysis-contract";
 
+// Re-export for type compatibility
+export type { ScanAnalysis } from "./ai-analysis-contract";
+
 /**
  * Validate and normalize a ScanAnalysis result.
  * Handles edge cases, clamps values, ensures array consistency.
@@ -42,8 +45,28 @@ export function validateAndNormalizeAnalysis(
     300
   );
 
+  // Validate optional critical gap arrays
+  const criticalMissingKeywords = validateStringArray(
+    obj.criticalMissingKeywords,
+    0,
+    5,
+    100
+  );
+  const criticalMissingSkills = validateStringArray(
+    obj.criticalMissingSkills,
+    0,
+    5,
+    100
+  );
+
   // Ensure 1:1 mapping between weakBullets and rewrittenBullets
   const normalizedBullets = normalizeBulletPairs(weakBullets, rewrittenBullets);
+
+  // Filter out cosmetic rewrites (optional similarity check)
+  const filteredBullets = filterCosmeticRewrites(
+    normalizedBullets.weak,
+    normalizedBullets.rewritten
+  );
 
   // Validate tailoredSummary
   const tailoredSummary = validateString(
@@ -68,18 +91,28 @@ export function validateAndNormalizeAnalysis(
     if (s.length >= 20) matchScoreReasoning = s;
   }
 
-  return {
+  const result: ScanAnalysis = {
     matchScore,
     missingKeywords,
     missingSkills,
     atsRisks,
-    weakBullets: normalizedBullets.weak,
-    rewrittenBullets: normalizedBullets.rewritten,
+    weakBullets: filteredBullets.weak,
+    rewrittenBullets: filteredBullets.rewritten,
     tailoredSummary,
     confidence,
     extractionQuality,
     ...(matchScoreReasoning !== undefined && { matchScoreReasoning }),
   };
+
+  // Add optional critical gap fields if present
+  if (criticalMissingKeywords.length > 0) {
+    result.criticalMissingKeywords = criticalMissingKeywords;
+  }
+  if (criticalMissingSkills.length > 0) {
+    result.criticalMissingSkills = criticalMissingSkills;
+  }
+
+  return result;
 }
 
 /**
@@ -155,6 +188,100 @@ function normalizeBulletPairs(
     weak: weak.slice(0, minLength),
     rewritten: rewritten.slice(0, minLength),
   };
+}
+
+/**
+ * Filter out cosmetic rewrites that are too similar to the original.
+ * Uses word overlap and edit distance heuristics to identify low-value rewrites.
+ */
+function filterCosmeticRewrites(
+  weak: string[],
+  rewritten: string[]
+): { weak: string[]; rewritten: string[] } {
+  if (weak.length !== rewritten.length) {
+    return { weak, rewritten };
+  }
+
+  const filtered: { weak: string[]; rewritten: string[] } = {
+    weak: [],
+    rewritten: [],
+  };
+
+  for (let i = 0; i < weak.length; i++) {
+    const original = weak[i].toLowerCase().trim();
+    const rewrite = rewritten[i].toLowerCase().trim();
+
+    // Skip if either is empty
+    if (!original || !rewrite) {
+      continue;
+    }
+
+    // Calculate word overlap ratio
+    const originalWords = new Set(original.split(/\s+/));
+    const rewriteWords = new Set(rewrite.split(/\s+/));
+    const intersection = new Set(
+      [...originalWords].filter((w) => rewriteWords.has(w))
+    );
+    const union = new Set([...originalWords, ...rewriteWords]);
+    const overlapRatio = union.size > 0 ? intersection.size / union.size : 0;
+
+    // Calculate simple edit distance ratio (Levenshtein-like heuristic)
+    const maxLen = Math.max(original.length, rewrite.length);
+    const editDistance = simpleEditDistance(original, rewrite);
+    const editRatio = maxLen > 0 ? editDistance / maxLen : 0;
+
+    // Keep if rewrite is meaningfully different:
+    // - Word overlap < 0.85 (not just reordering/synonyms)
+    // - Edit distance ratio > 0.15 (substantial changes)
+    // - Or rewrite is significantly longer (likely added specificity)
+    const isSignificantlyLonger = rewrite.length > original.length * 1.3;
+
+    if (
+      overlapRatio < 0.85 ||
+      editRatio > 0.15 ||
+      isSignificantlyLonger
+    ) {
+      filtered.weak.push(weak[i]);
+      filtered.rewritten.push(rewritten[i]);
+    }
+  }
+
+  return filtered;
+}
+
+/**
+ * Simple edit distance calculation (Levenshtein-like).
+ * Returns the minimum number of single-character edits needed.
+ */
+function simpleEditDistance(s1: string, s2: string): number {
+  const len1 = s1.length;
+  const len2 = s2.length;
+
+  if (len1 === 0) return len2;
+  if (len2 === 0) return len1;
+
+  // Create matrix
+  const matrix: number[][] = [];
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  // Fill matrix
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1, // deletion
+        matrix[i][j - 1] + 1, // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+
+  return matrix[len1][len2];
 }
 
 /**

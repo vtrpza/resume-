@@ -110,15 +110,51 @@ function buildReportMarkdown(analysis: ScanAnalysis): string {
     lines.push(analysis.matchScoreReasoning, "");
   }
   lines.push("## Gaps to close", "");
-  if (analysis.missingKeywords.length > 0) {
-    lines.push("### Missing keywords", "", ...analysis.missingKeywords.map((k) => `- ${k}`), "");
+
+  // Critical gaps (if present)
+  const hasCriticalKeywords = analysis.criticalMissingKeywords && analysis.criticalMissingKeywords.length > 0;
+  const hasCriticalSkills = analysis.criticalMissingSkills && analysis.criticalMissingSkills.length > 0;
+  const hasCriticalGaps = hasCriticalKeywords || hasCriticalSkills;
+
+  if (hasCriticalGaps) {
+    lines.push("### Critical gaps", "");
+    if (hasCriticalKeywords) {
+      lines.push("**Keywords:**", "", ...analysis.criticalMissingKeywords!.map((k) => `- ${k}`), "");
+    }
+    if (hasCriticalSkills) {
+      lines.push("**Skills:**", "", ...analysis.criticalMissingSkills!.map((s) => `- ${s}`), "");
+    }
+    lines.push("");
   }
-  if (analysis.missingSkills.length > 0) {
-    lines.push("### Missing skills", "", ...analysis.missingSkills.map((s) => `- ${s}`), "");
+
+  // Other gaps (excluding items already in critical)
+  const criticalKeywordSet = new Set(analysis.criticalMissingKeywords || []);
+  const criticalSkillSet = new Set(analysis.criticalMissingSkills || []);
+  const otherKeywords = analysis.missingKeywords.filter((k) => !criticalKeywordSet.has(k));
+  const otherSkills = analysis.missingSkills.filter((s) => !criticalSkillSet.has(s));
+
+  if (otherKeywords.length > 0 || otherSkills.length > 0) {
+    lines.push("### Other gaps", "");
+    if (otherKeywords.length > 0) {
+      lines.push("**Keywords:**", "", ...otherKeywords.map((k) => `- ${k}`), "");
+    }
+    if (otherSkills.length > 0) {
+      lines.push("**Skills:**", "", ...otherSkills.map((s) => `- ${s}`), "");
+    }
+    lines.push("");
+  } else if (!hasCriticalGaps) {
+    // Fallback: show all gaps if no critical gaps structure
+    if (analysis.missingKeywords.length > 0) {
+      lines.push("### Missing keywords", "", ...analysis.missingKeywords.map((k) => `- ${k}`), "");
+    }
+    if (analysis.missingSkills.length > 0) {
+      lines.push("### Missing skills", "", ...analysis.missingSkills.map((s) => `- ${s}`), "");
+    }
+    if (analysis.missingKeywords.length === 0 && analysis.missingSkills.length === 0) {
+      lines.push("No major keyword or skill gaps identified.", "");
+    }
   }
-  if (analysis.missingKeywords.length === 0 && analysis.missingSkills.length === 0) {
-    lines.push("No major keyword or skill gaps identified.", "");
-  }
+
   lines.push("## ATS risk flags", "");
   if (analysis.atsRisks.length > 0) {
     lines.push(...analysis.atsRisks.map((r) => `- ${r}`), "");
@@ -253,48 +289,145 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
       {/* Gaps to close */}
       <div className="space-y-5">
         <SectionLabel>Gaps to close</SectionLabel>
-        {data.missingKeywords.length > 0 || data.missingSkills.length > 0 ? (
-          <>
-            {data.missingKeywords.length > 0 && (
-              <section className={cardClass}>
-                <h2 className="text-sm font-medium text-zinc-400">
-                  Missing keywords
-                </h2>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Terms from the job description not in your resume. Adding them where they fit can improve ATS compatibility.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {data.missingKeywords.map((k, i) => (
-                    <span key={i} className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">
-                      {k}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-            {data.missingSkills.length > 0 && (
-              <section className={cardClass}>
-                <h2 className="text-sm font-medium text-zinc-400">
-                  Missing skills
-                </h2>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Skills the job requires that aren&apos;t clearly present. Only add skills you actually have.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {data.missingSkills.map((s, i) => (
-                    <span key={i} className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
-        ) : (
-          <p className="text-sm text-zinc-400">
-            No major keyword or skill gaps identified.
-          </p>
-        )}
+        {(() => {
+          const hasCriticalKeywords = data.criticalMissingKeywords && data.criticalMissingKeywords.length > 0;
+          const hasCriticalSkills = data.criticalMissingSkills && data.criticalMissingSkills.length > 0;
+          const hasCriticalGaps = hasCriticalKeywords || hasCriticalSkills;
+
+          // Calculate other gaps (excluding items already in critical)
+          const criticalKeywordSet = new Set(data.criticalMissingKeywords || []);
+          const criticalSkillSet = new Set(data.criticalMissingSkills || []);
+          const otherKeywords = data.missingKeywords.filter((k) => !criticalKeywordSet.has(k));
+          const otherSkills = data.missingSkills.filter((s) => !criticalSkillSet.has(s));
+
+          const hasOtherGaps = otherKeywords.length > 0 || otherSkills.length > 0;
+          const hasAnyGaps = hasCriticalGaps || hasOtherGaps || data.missingKeywords.length > 0 || data.missingSkills.length > 0;
+
+          if (!hasAnyGaps) {
+            return (
+              <p className="text-sm text-zinc-400">
+                No major keyword or skill gaps identified.
+              </p>
+            );
+          }
+
+          return (
+            <>
+              {hasCriticalGaps && (
+                <section className={cardClass}>
+                  <h2 className="text-sm font-medium text-zinc-400">
+                    Critical gaps
+                  </h2>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    These are the most important gaps for this role—core requirements, repeatedly mentioned skills, or explicitly mandatory items.
+                  </p>
+                  {hasCriticalKeywords && (
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-zinc-500 mb-2">Keywords</p>
+                      <div className="flex flex-wrap gap-2">
+                        {data.criticalMissingKeywords!.map((k, i) => (
+                          <span key={i} className="inline-flex items-center rounded-md bg-red-950/40 border border-red-800/50 px-2.5 py-1 text-xs font-medium text-red-300">
+                            {k}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {hasCriticalSkills && (
+                    <div className={hasCriticalKeywords ? "mt-3" : "mt-3"}>
+                      <p className="text-xs font-medium text-zinc-500 mb-2">Skills</p>
+                      <div className="flex flex-wrap gap-2">
+                        {data.criticalMissingSkills!.map((s, i) => (
+                          <span key={i} className="inline-flex items-center rounded-md bg-red-950/40 border border-red-800/50 px-2.5 py-1 text-xs font-medium text-red-300">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {hasOtherGaps && (
+                <>
+                  {otherKeywords.length > 0 && (
+                    <section className={cardClass}>
+                      <h2 className="text-sm font-medium text-zinc-400">
+                        Other missing keywords
+                      </h2>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Terms from the job description not in your resume. Adding them where they fit can improve ATS compatibility.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {otherKeywords.map((k, i) => (
+                          <span key={i} className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                            {k}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {otherSkills.length > 0 && (
+                    <section className={cardClass}>
+                      <h2 className="text-sm font-medium text-zinc-400">
+                        Other missing skills
+                      </h2>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Skills the job requires that aren&apos;t clearly present. Only add skills you actually have.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {otherSkills.map((s, i) => (
+                          <span key={i} className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+
+              {!hasCriticalGaps && !hasOtherGaps && (
+                <>
+                  {data.missingKeywords.length > 0 && (
+                    <section className={cardClass}>
+                      <h2 className="text-sm font-medium text-zinc-400">
+                        Missing keywords
+                      </h2>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Terms from the job description not in your resume. Listed in order of importance to this role. Adding them where they fit can improve ATS compatibility.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {data.missingKeywords.map((k, i) => (
+                          <span key={i} className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                            {k}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {data.missingSkills.length > 0 && (
+                    <section className={cardClass}>
+                      <h2 className="text-sm font-medium text-zinc-400">
+                        Missing skills
+                      </h2>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Skills the job requires that aren&apos;t clearly present. Listed in order of importance to this role. Only add skills you actually have.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {data.missingSkills.map((s, i) => (
+                          <span key={i} className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Risks to fix */}
@@ -424,12 +557,21 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                 <span>Fix ATS risk flags first—formatting issues can prevent your resume from being parsed correctly.</span>
               </li>
             )}
-            {data.missingKeywords.length > 0 && (
-              <li className="flex items-start gap-2">
-                <span className="text-zinc-500 mt-0.5">2.</span>
-                <span>Add missing keywords where they naturally fit in your experience. Only include terms that accurately describe your work.</span>
-              </li>
-            )}
+            {(() => {
+              const hasCriticalKeywords = data.criticalMissingKeywords && data.criticalMissingKeywords.length > 0;
+              const hasAnyKeywords = data.missingKeywords.length > 0;
+              if (!hasAnyKeywords) return null;
+              return (
+                <li className="flex items-start gap-2">
+                  <span className="text-zinc-500 mt-0.5">2.</span>
+                  <span>
+                    {hasCriticalKeywords
+                      ? "Address critical gaps first—these are the most important for this role. Then add other missing keywords where they naturally fit in your experience."
+                      : "Add missing keywords where they naturally fit in your experience. Only include terms that accurately describe your work."}
+                  </span>
+                </li>
+              );
+            })()}
             {canPair && (
               <li className="flex items-start gap-2">
                 <span className="text-zinc-500 mt-0.5">3.</span>
