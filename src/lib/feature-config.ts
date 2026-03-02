@@ -5,7 +5,8 @@
  */
 
 export function isFullAppEnabled(): boolean {
-  return process.env.RESUME_MATCH_FULL_APP === "1";
+  const v = process.env.RESUME_MATCH_FULL_APP?.trim().toLowerCase();
+  return v === "1" || v === "true";
 }
 
 /** True when DATABASE_URL is set and DB can be used. */

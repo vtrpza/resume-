@@ -17,6 +17,12 @@ export async function GET(request: NextRequest) {
     const sessionId = request.nextUrl.searchParams.get("sessionId");
     if (sessionId) {
       const usage = await getUsage(sessionId);
+      if (isFullAppEnabled() && usage === null) {
+        return NextResponse.json(
+          { error: "Usage service unavailable" },
+          { status: 503 }
+        );
+      }
       if (usage) {
         return NextResponse.json(usage);
       }
