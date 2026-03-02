@@ -32,10 +32,10 @@ export function Paywall({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-md rounded-xl bg-zinc-900 p-6 shadow-xl ring-1 ring-zinc-800">
         <h2 className="text-lg font-semibold text-white">
-          Get your full report for $2
+          You&apos;ve used your free scan
         </h2>
         <p className="mt-2 text-sm text-zinc-400">
-          One-time payment, no subscription.
+          Get the same full report for your next application. $2 per scan, one-time payment, no subscription.
         </p>
         <div className="mt-6 space-y-3">
           <button

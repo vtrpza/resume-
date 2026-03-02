@@ -68,16 +68,20 @@ export default function ResultPage() {
 
       <AnalysisView data={analysis} />
 
-      <div className="mt-8 space-y-3">
+      {/* Upsell: next scan = $2 */}
+      <div className="mt-10 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
+        <p className="text-sm font-medium text-zinc-300">
+          Scan another job for $2 — same full report.
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          One-time payment per scan. No subscription.
+        </p>
         <Link
           href="/scan"
-          className="inline-block min-h-[44px] rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+          className="mt-4 inline-block min-h-[44px] rounded-lg bg-white px-6 py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
         >
           Scan another resume
         </Link>
-        <p className="text-xs text-zinc-500">
-          Tip: Copy the tailored summary and use it in your application or cover letter.
-        </p>
       </div>
     </main>
   );
@@ -85,6 +89,23 @@ export default function ResultPage() {
 
 const cardClass =
   "rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6";
+
+const scoreCardClass =
+  "rounded-xl border-2 border-zinc-700 bg-zinc-900/80 p-6 sm:p-8";
+
+function scoreBand(score: number): { label: string; ring: string } {
+  if (score >= 80) return { label: "Strong match. Your resume aligns well with this role.", ring: "ring-emerald-500/30 bg-emerald-950/20" };
+  if (score >= 60) return { label: "Good match. Consider adding missing keywords to improve your score.", ring: "ring-amber-500/30 bg-amber-950/20" };
+  return { label: "Room for improvement. Review missing keywords and skills below.", ring: "ring-red-500/20 bg-red-950/10" };
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+      {children}
+    </p>
+  );
+}
 
 function AnalysisView({ data }: { data: unknown }) {
   const d = data as Record<string, unknown>;
@@ -117,152 +138,172 @@ function AnalysisView({ data }: { data: unknown }) {
     d.extractionQuality === "low" ||
     (typeof d.confidence === "number" && d.confidence < 0.7);
 
+  const score = typeof d.matchScore === "number" ? d.matchScore : null;
+  const band = score !== null ? scoreBand(score) : null;
+
   return (
-    <div className="mt-6 space-y-5">
+    <div className="mt-8 space-y-8">
       {showLowQualityNotice && (
         <p className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
           We had trouble reading some parts of your PDF; results may be less
           accurate.
         </p>
       )}
-      {typeof d.matchScore === "number" && (
-        <section className={cardClass}>
+
+      {/* Match score hero */}
+      {score !== null && band && (
+        <section className={`${scoreCardClass} ring-2 ${band.ring}`}>
           <h2 className="text-sm font-medium text-zinc-500 mb-4">Match score</h2>
-          <div className="flex flex-col items-center rounded-lg ring-1 ring-zinc-700/50 bg-zinc-900/80 py-6 px-4">
-            <p className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-              {d.matchScore}%
+          <div className="flex flex-col items-center py-4 sm:py-6">
+            <p className="text-5xl font-bold tracking-tight text-white sm:text-6xl">
+              {score}%
             </p>
             <p className="mt-2 text-sm text-zinc-400">
               Overall alignment with job requirements
             </p>
-            <p className="mt-3 text-xs text-zinc-500 text-center max-w-sm">
-              {d.matchScore >= 80
-                ? "Strong match. Your resume aligns well with this role."
-                : d.matchScore >= 60
-                ? "Good match. Consider adding missing keywords to improve your score."
-                : "Room for improvement. Review missing keywords and skills below."}
+            <p className="mt-4 text-sm text-zinc-300 text-center max-w-sm">
+              {band.label}
             </p>
           </div>
         </section>
       )}
 
-      {Array.isArray(d.missingKeywords) && d.missingKeywords.length > 0 && (
-        <section className={cardClass}>
-          <h2 className="text-sm font-medium text-zinc-500">
-            Missing keywords
-          </h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            These terms appear in the job description but not in your resume. Adding them can improve ATS compatibility.
-          </p>
-          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
-            {(d.missingKeywords as string[]).map((k, i) => (
-              <li key={i}>{k}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {Array.isArray(d.missingSkills) && d.missingSkills.length > 0 && (
-        <section className={cardClass}>
-          <h2 className="text-sm font-medium text-zinc-500">
-            Missing skills
-          </h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            Skills mentioned in the job description that aren&apos;t clearly present in your resume. Only add skills you actually have.
-          </p>
-          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
-            {(d.missingSkills as string[]).map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {Array.isArray(d.atsRisks) && d.atsRisks.length > 0 && (
-        <section className={cardClass}>
-          <h2 className="text-sm font-medium text-zinc-500">
-            ATS risk flags
-          </h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            Formatting or content issues that could cause problems with applicant tracking systems.
-          </p>
-          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
-            {(d.atsRisks as string[]).map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {canPair ? (
-        <section className={cardClass}>
-          <h2 className="text-sm font-medium text-zinc-500">
-            Bullet improvements
-          </h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            We&apos;ve rewritten weak bullets to be more impactful and quantifiable, using only what&apos;s in your resume.
-          </p>
-          <ul className="mt-4 space-y-5">
-            {weakBullets.map((weak, i) => (
-              <li key={i} className="space-y-2 border-t border-zinc-800 pt-4 first:border-t-0 first:pt-0">
-                <p className="text-xs font-medium text-zinc-500">Original</p>
-                <p className="text-zinc-400 line-through">{weak}</p>
-                <p className="text-xs font-medium text-zinc-500 mt-3">Suggested</p>
-                <p className="text-zinc-300">{rewrittenBullets[i]}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : (
-        <>
-          {weakBullets.length > 0 && (
+      {/* Gaps to close */}
+      {(Array.isArray(d.missingKeywords) && d.missingKeywords.length > 0) ||
+       (Array.isArray(d.missingSkills) && d.missingSkills.length > 0) ? (
+        <div className="space-y-5">
+          <SectionLabel>Gaps to close</SectionLabel>
+          {Array.isArray(d.missingKeywords) && d.missingKeywords.length > 0 && (
             <section className={cardClass}>
-              <h2 className="text-sm font-medium text-zinc-500">
-                Weak bullets
-              </h2>
-              <ul className="mt-2 space-y-1 text-zinc-300">
-                {weakBullets.map((b, i) => (
-                  <li key={i}>{b}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {rewrittenBullets.length > 0 && (
-            <section className={cardClass}>
-              <h2 className="text-sm font-medium text-zinc-500">
-                Rewritten bullets
-              </h2>
-              <ul className="mt-2 space-y-2 text-zinc-300">
-                {rewrittenBullets.map((b, i) => (
-                  <li key={i}>{b}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </>
-      )}
-
-      {summary && (
-        <section className={cardClass}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-medium text-zinc-500">
-                Tailored summary
+              <h2 className="text-sm font-medium text-zinc-400">
+                Missing keywords
               </h2>
               <p className="mt-1 text-xs text-zinc-500">
-                A job-specific summary highlighting your most relevant experience for this role.
+                Terms from the job description not in your resume. Adding them where they fit can improve ATS compatibility.
               </p>
+              <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
+                {(d.missingKeywords as string[]).map((k, i) => (
+                  <li key={i}>{k}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {Array.isArray(d.missingSkills) && d.missingSkills.length > 0 && (
+            <section className={cardClass}>
+              <h2 className="text-sm font-medium text-zinc-400">
+                Missing skills
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Skills the job requires that aren&apos;t clearly present. Only add skills you actually have.
+              </p>
+              <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
+                {(d.missingSkills as string[]).map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      ) : null}
+
+      {/* Risks to fix */}
+      {Array.isArray(d.atsRisks) && d.atsRisks.length > 0 && (
+        <div className="space-y-5">
+          <SectionLabel>Risks to fix</SectionLabel>
+          <section className={cardClass}>
+            <h2 className="text-sm font-medium text-zinc-400">
+              ATS risk flags
+            </h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Formatting or content issues that could affect how applicant tracking systems read your resume.
+            </p>
+            <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
+              {(d.atsRisks as string[]).map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      )}
+
+      {/* Improvements */}
+      {(canPair || weakBullets.length > 0 || rewrittenBullets.length > 0) && (
+        <div className="space-y-5">
+          <SectionLabel>Improvements</SectionLabel>
+          {canPair ? (
+            <section className={cardClass}>
+              <h2 className="text-sm font-medium text-zinc-400">
+                Bullet improvements
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                Stronger, more impactful versions using only what&apos;s in your resume—no invented metrics.
+              </p>
+              <ul className="mt-4 space-y-6">
+                {weakBullets.map((weak, i) => (
+                  <li key={i} className="space-y-2 border-t border-zinc-800 pt-5 first:border-t-0 first:pt-0">
+                    <p className="text-xs font-medium text-zinc-500">Original</p>
+                    <p className="text-zinc-400 line-through">{weak}</p>
+                    <p className="text-xs font-medium text-zinc-500 mt-3">Suggested</p>
+                    <p className="text-zinc-300">{rewrittenBullets[i]}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <>
+              {weakBullets.length > 0 && (
+                <section className={cardClass}>
+                  <h2 className="text-sm font-medium text-zinc-400">Weak bullets</h2>
+                  <ul className="mt-2 space-y-1.5 text-zinc-300">
+                    {weakBullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {rewrittenBullets.length > 0 && (
+                <section className={cardClass}>
+                  <h2 className="text-sm font-medium text-zinc-400">Rewritten bullets</h2>
+                  <ul className="mt-2 space-y-2 text-zinc-300">
+                    {rewrittenBullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Summary */}
+      {summary && (
+        <div className="space-y-5">
+          <SectionLabel>Summary</SectionLabel>
+          <section className={cardClass}>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-medium text-zinc-400">
+                  Tailored summary
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Job-specific summary you can drop into applications or cover letters.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopySummary}
+                className="shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-900"
+              >
+                {copied ? "✓ Copied" : "Copy summary"}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleCopySummary}
-              className="min-h-[36px] rounded-md border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-700"
-            >
-              {copied ? "✓ Copied" : "Copy summary"}
-            </button>
-          </div>
-          <p className="mt-4 text-zinc-300 leading-relaxed">{summary}</p>
-        </section>
+            <p className="mt-4 text-zinc-300 leading-relaxed">{summary}</p>
+            <p className="mt-4 text-xs text-zinc-500">
+              Use the summary in your application or cover letter; address the gaps and risks above before you apply.
+            </p>
+          </section>
+        </div>
       )}
     </div>
   );

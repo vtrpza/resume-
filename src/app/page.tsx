@@ -5,21 +5,21 @@ export default function HomePage() {
   return (
     <>
       <LandingTracker />
-      <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20">
+      <main className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-24">
         {/* Hero Section */}
         <section className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-medium text-zinc-500 sm:text-base">
             Resume Match
           </p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-white sm:text-5xl sm:leading-tight">
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl sm:leading-tight">
             Match your resume to the job—before you apply
           </h1>
-          <p className="mt-4 text-lg text-zinc-400 sm:mt-6 sm:text-xl">
+          <p className="mt-5 text-lg text-zinc-400 sm:mt-6 sm:text-xl">
             Upload your PDF, paste the job description. Get a match score,
             missing keywords, ATS risks, and stronger bullets in seconds. No
             fluff, no fabrication. Your data stays private.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:justify-center">
+          <div className="mt-10 flex flex-col gap-3 sm:mt-12 sm:flex-row sm:justify-center">
             <CtaLink
               href="/scan"
               cta="hero_scan"
@@ -152,15 +152,13 @@ export default function HomePage() {
             Here&apos;s what one scan returns.
           </p>
           <div className="mt-12 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8">
-            <p className="mb-4 text-xs font-medium uppercase tracking-wider text-zinc-500">
+            <p className="mb-6 text-xs font-semibold uppercase tracking-wider text-zinc-500">
               Sample report
             </p>
-            <div className="space-y-6">
+            <div className="space-y-8">
               <div>
-                <h3 className="text-sm font-medium text-zinc-500">
-                  Match score
-                </h3>
-                <p className="mt-1 text-2xl font-semibold text-white">72%</p>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Match score</h3>
+                <p className="mt-2 text-3xl font-semibold text-white">72%</p>
                 <p className="mt-1 text-sm text-zinc-400">
                   Overall alignment with job requirements
                 </p>
@@ -168,57 +166,50 @@ export default function HomePage() {
                   Good match. Adding missing keywords could improve your score.
                 </p>
               </div>
-              <div className="border-t border-zinc-800 pt-6">
-                <h3 className="text-sm font-medium text-zinc-500">
-                  Missing keywords
-                </h3>
+              <div className="border-t border-zinc-800 pt-8">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Gaps to close</p>
+                <h3 className="mt-3 text-sm font-medium text-zinc-400">Missing keywords</h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Terms in the job description not found in your resume
                 </p>
-                <ul className="mt-3 space-y-1 text-sm text-zinc-300">
+                <ul className="mt-3 space-y-1.5 text-sm text-zinc-300">
                   <li>• CI/CD</li>
                   <li>• Kubernetes</li>
                   <li>• GraphQL</li>
                 </ul>
-              </div>
-              <div className="border-t border-zinc-800 pt-6">
-                <h3 className="text-sm font-medium text-zinc-500">
-                  Missing skills
-                </h3>
+                <h3 className="mt-5 text-sm font-medium text-zinc-400">Missing skills</h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Skills mentioned in the job that aren&apos;t clearly present
                 </p>
-                <ul className="mt-3 space-y-1 text-sm text-zinc-300">
+                <ul className="mt-3 space-y-1.5 text-sm text-zinc-300">
                   <li>• Cloud architecture</li>
                   <li>• Performance optimization</li>
                 </ul>
               </div>
-              <div className="border-t border-zinc-800 pt-6">
-                <h3 className="text-sm font-medium text-zinc-500">
-                  ATS risk flags
-                </h3>
+              <div className="border-t border-zinc-800 pt-8">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Risks to fix</p>
+                <h3 className="mt-3 text-sm font-medium text-zinc-400">ATS risk flags</h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Formatting or content issues that could affect ATS compatibility
                 </p>
-                <ul className="mt-3 space-y-1 text-sm text-zinc-300">
+                <ul className="mt-3 space-y-1.5 text-sm text-zinc-300">
                   <li>• Resume uses two-column layout which may confuse ATS parsers</li>
                   <li>• No quantified achievements in first 3 bullets</li>
                 </ul>
               </div>
-              <div className="border-t border-zinc-800 pt-6">
-                <h3 className="text-sm font-medium text-zinc-500">
-                  Weak bullets → Rewritten
-                </h3>
+              <div className="border-t border-zinc-800 pt-8">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Improvements</p>
+                <h3 className="mt-3 text-sm font-medium text-zinc-400">Weak bullets → Rewritten</h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Stronger, more impactful versions based on your actual experience
                 </p>
-                <div className="mt-3 space-y-3 text-sm">
+                <div className="mt-4 space-y-3 text-sm">
                   <div>
                     <p className="text-xs font-medium text-zinc-500">Original</p>
                     <p className="mt-1 text-zinc-400 line-through">
                       Responsible for managing team projects
                     </p>
-                    <p className="text-xs font-medium text-zinc-500 mt-3">Suggested</p>
+                    <p className="mt-3 text-xs font-medium text-zinc-500">Suggested</p>
                     <p className="mt-1 text-zinc-300">
                       Led cross-functional team of 8 to deliver 3 major product
                       launches on schedule, reducing time-to-market by 20%
@@ -226,18 +217,17 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div className="border-t border-zinc-800 pt-6">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <h3 className="text-sm font-medium text-zinc-500">
-                      Tailored summary
-                    </h3>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Job-specific summary highlighting your most relevant experience
-                    </p>
-                  </div>
-                  <span className="text-xs text-zinc-600 border border-zinc-700 rounded px-2 py-1">Copy</span>
+              <div className="border-t border-zinc-800 pt-8">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Summary</p>
+                <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="text-sm font-medium text-zinc-400">
+                    Tailored summary
+                  </h3>
+                  <span className="text-xs text-zinc-500 border border-zinc-700 rounded-md px-2.5 py-1.5">Copy</span>
                 </div>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Job-specific summary highlighting your most relevant experience
+                </p>
                 <p className="mt-3 text-sm text-zinc-300 leading-relaxed">
                   Full-stack engineer with 5+ years building scalable web
                   applications. Proven track record in React, Node.js, and

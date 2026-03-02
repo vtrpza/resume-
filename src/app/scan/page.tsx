@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { setRoute } from "@/lib/sentry";
@@ -14,17 +14,40 @@ import {
 } from "@/lib/cookies";
 import { capture, captureFileUpload, captureTextInput, captureScanCompleted, captureScanFailed } from "@/lib/analytics";
 
+const LOADING_STEPS = [
+  "Reading your resume…",
+  "Comparing to job requirements…",
+  "Building your report…",
+] as const;
+
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
 function ScanContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [showPaywall, setShowPaywall] = useState<boolean | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setRoute("scan");
   }, []);
+
+  // Step-based loading progress
+  useEffect(() => {
+    if (!loading) {
+      setLoadingStep(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingStep((s) => (s < LOADING_STEPS.length - 1 ? s + 1 : s));
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +158,38 @@ function ScanContent() {
     );
   }
 
+  function setFile(file: File | null) {
+    const input = fileInputRef.current;
+    if (!input) return;
+    if (file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      setSelectedFileName(file.name);
+      captureFileUpload(file);
+    } else {
+      input.value = "";
+      setSelectedFileName(null);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setError("Please upload a PDF file.");
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      setError("File must be under 5 MB.");
+      return;
+    }
+    setError(null);
+    setFile(file);
+  }
+
   return (
     <main className="mx-auto max-w-2xl px-4 pt-10 pb-24 sm:px-6 sm:py-12 sm:pb-12">
       <Link
@@ -147,43 +202,62 @@ function ScanContent() {
         Scan your resume
       </h1>
       <p className="mt-2 text-zinc-400">
-        Upload your resume (PDF) and paste the job description below. Your data is processed securely and not stored.
+        Upload your resume (PDF) and paste the job description. Your data is processed securely and not stored.
       </p>
 
-      <form action={handleSubmit} className="mt-6 space-y-4 sm:mt-8 sm:space-y-6">
+      <form action={handleSubmit} className="mt-8 space-y-6 sm:space-y-8">
         <input
           type="hidden"
           name="sessionId"
           value={getOrCreateSessionId()}
         />
         <div>
-          <label
-            htmlFor="resume"
-            className="block text-sm font-medium text-zinc-300"
-          >
+          <label className="block text-sm font-medium text-zinc-300">
             Resume (PDF)
           </label>
           <p className="mt-1 text-xs text-zinc-500">
-            Max 5 MB. Works best with standard single-column layouts. We don&apos;t store your file.
+            Max 5 MB. We don&apos;t store your file.
           </p>
           <input
+            ref={fileInputRef}
             id="resume"
             name="resume"
             type="file"
             accept="application/pdf"
             required
-            className="mt-2 block w-full text-sm text-zinc-400 file:mr-4 file:min-h-[44px] file:rounded file:border-0 file:bg-zinc-700 file:px-4 file:py-2.5 file:text-white file:transition file:hover:bg-zinc-600"
+            className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              setSelectedFileName(file ? file.name : null);
-              captureFileUpload(file || null);
+              setFile(file || null);
             }}
           />
-          {selectedFileName && (
-            <p className="mt-2 text-sm text-zinc-400">
-              ✓ {selectedFileName}
-            </p>
-          )}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={handleDrop}
+            className={`mt-2 flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 transition sm:min-h-[140px] ${
+              dragActive
+                ? "border-zinc-500 bg-zinc-800/50"
+                : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-800/30"
+            }`}
+          >
+            {selectedFileName ? (
+              <>
+                <span className="text-lg text-emerald-400">✓</span>
+                <p className="mt-2 text-sm font-medium text-white">{selectedFileName}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">Click or drop a different file</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-zinc-300">Drop your PDF here or click to browse</p>
+                <p className="mt-1 text-xs text-zinc-500">PDF only, max 5 MB</p>
+              </>
+            )}
+          </div>
         </div>
         <div>
           <label
@@ -193,27 +267,24 @@ function ScanContent() {
             Job description
           </label>
           <p className="mt-1 text-xs text-zinc-500">
-            Paste the complete job posting, including requirements, responsibilities, and qualifications.
+            Paste the full job posting—requirements, responsibilities, and qualifications.
           </p>
           <textarea
             id="jd"
             name="jd"
             rows={10}
             required
-            placeholder="Example:&#10;&#10;Senior Software Engineer&#10;Company: TechCorp Inc.&#10;&#10;Requirements:&#10;• 5+ years experience with React and Node.js&#10;• Experience with cloud platforms (AWS, GCP)&#10;• Strong problem-solving skills&#10;&#10;[Paste full job description here...]"
-            className="mt-2 min-h-[140px] w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-white placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 sm:min-h-[180px]"
+            placeholder="Paste the full job description here…"
+            className="mt-2 min-h-[140px] w-full resize-y rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-white placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/50 sm:min-h-[180px]"
             onFocus={() => {
-              // Track when user starts entering JD (first focus)
               const textarea = document.getElementById("jd") as HTMLTextAreaElement;
               if (textarea && textarea.value.length === 0) {
                 captureTextInput("", "jd");
               }
             }}
             onChange={(e) => {
-              // Track when user pastes/enters substantial content
               const text = e.target.value;
               if (text.length > 50 && text.length < 200) {
-                // Only capture once when they start entering content
                 captureTextInput(text, "jd");
               }
             }}
@@ -231,17 +302,17 @@ function ScanContent() {
             className="w-full rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
           >
             {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent"></span>
-                Analyzing your resume…
+              <span className="flex items-center justify-center gap-3">
+                <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent" />
+                <span>{LOADING_STEPS[loadingStep]}</span>
               </span>
             ) : (
               "Run scan"
             )}
           </button>
           {loading && (
-            <p className="mt-2 text-xs text-zinc-500 sm:mt-3">
-              Extracting content, comparing against job requirements, and generating your report. This usually takes 10–20 seconds.
+            <p className="mt-3 text-xs text-zinc-500">
+              Step {loadingStep + 1} of {LOADING_STEPS.length}. Usually 10–20 seconds.
             </p>
           )}
         </div>
