@@ -51,16 +51,24 @@ export default function ResultPage() {
       >
         ← Home
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold text-white">Scan result</h1>
+      <h1 className="mt-4 text-2xl font-semibold text-white">Your scan results</h1>
+      <p className="mt-2 text-sm text-zinc-400">
+        Review your match score, gaps, and improvement suggestions below.
+      </p>
 
       <AnalysisView data={analysis} />
 
-      <Link
-        href="/scan"
-        className="mt-8 inline-block min-h-[44px] py-2 text-sm text-zinc-500 hover:text-zinc-300"
-      >
-        Scan another resume
-      </Link>
+      <div className="mt-8 space-y-3">
+        <Link
+          href="/scan"
+          className="inline-block min-h-[44px] rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+        >
+          Scan another resume
+        </Link>
+        <p className="text-xs text-zinc-500">
+          Tip: Copy the tailored summary and use it in your application or cover letter.
+        </p>
+      </div>
     </main>
   );
 }
@@ -108,15 +116,20 @@ function AnalysisView({ data }: { data: unknown }) {
       )}
       {typeof d.matchScore === "number" && (
         <section className={cardClass}>
+          <h2 className="text-sm font-medium text-zinc-500 mb-4">Match score</h2>
           <div className="flex flex-col items-center rounded-lg ring-1 ring-zinc-700/50 bg-zinc-900/80 py-6 px-4">
-            <p className="text-sm font-medium text-zinc-500">
-              Match score
-            </p>
-            <p className="mt-1 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+            <p className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
               {d.matchScore}%
             </p>
             <p className="mt-2 text-sm text-zinc-400">
               Overall alignment with job requirements
+            </p>
+            <p className="mt-3 text-xs text-zinc-500 text-center max-w-sm">
+              {d.matchScore >= 80
+                ? "Strong match. Your resume aligns well with this role."
+                : d.matchScore >= 60
+                ? "Good match. Consider adding missing keywords to improve your score."
+                : "Room for improvement. Review missing keywords and skills below."}
             </p>
           </div>
         </section>
@@ -127,7 +140,10 @@ function AnalysisView({ data }: { data: unknown }) {
           <h2 className="text-sm font-medium text-zinc-500">
             Missing keywords
           </h2>
-          <ul className="mt-2 list-inside list-disc text-zinc-300">
+          <p className="mt-1 text-xs text-zinc-500">
+            These terms appear in the job description but not in your resume. Adding them can improve ATS compatibility.
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
             {(d.missingKeywords as string[]).map((k, i) => (
               <li key={i}>{k}</li>
             ))}
@@ -140,7 +156,10 @@ function AnalysisView({ data }: { data: unknown }) {
           <h2 className="text-sm font-medium text-zinc-500">
             Missing skills
           </h2>
-          <ul className="mt-2 list-inside list-disc text-zinc-300">
+          <p className="mt-1 text-xs text-zinc-500">
+            Skills mentioned in the job description that aren&apos;t clearly present in your resume. Only add skills you actually have.
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
             {(d.missingSkills as string[]).map((s, i) => (
               <li key={i}>{s}</li>
             ))}
@@ -153,7 +172,10 @@ function AnalysisView({ data }: { data: unknown }) {
           <h2 className="text-sm font-medium text-zinc-500">
             ATS risk flags
           </h2>
-          <ul className="mt-2 list-inside list-disc text-zinc-300">
+          <p className="mt-1 text-xs text-zinc-500">
+            Formatting or content issues that could cause problems with applicant tracking systems.
+          </p>
+          <ul className="mt-3 list-inside list-disc space-y-1 text-zinc-300">
             {(d.atsRisks as string[]).map((r, i) => (
               <li key={i}>{r}</li>
             ))}
@@ -166,12 +188,15 @@ function AnalysisView({ data }: { data: unknown }) {
           <h2 className="text-sm font-medium text-zinc-500">
             Bullet improvements
           </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            We&apos;ve rewritten weak bullets to be more impactful and quantifiable, using only what&apos;s in your resume.
+          </p>
           <ul className="mt-4 space-y-5">
             {weakBullets.map((weak, i) => (
-              <li key={i} className="space-y-2">
+              <li key={i} className="space-y-2 border-t border-zinc-800 pt-4 first:border-t-0 first:pt-0">
                 <p className="text-xs font-medium text-zinc-500">Original</p>
                 <p className="text-zinc-400 line-through">{weak}</p>
-                <p className="text-xs font-medium text-zinc-500">Suggested</p>
+                <p className="text-xs font-medium text-zinc-500 mt-3">Suggested</p>
                 <p className="text-zinc-300">{rewrittenBullets[i]}</p>
               </li>
             ))}
@@ -209,18 +234,23 @@ function AnalysisView({ data }: { data: unknown }) {
       {summary && (
         <section className={cardClass}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium text-zinc-500">
-              Tailored summary
-            </h2>
+            <div>
+              <h2 className="text-sm font-medium text-zinc-500">
+                Tailored summary
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                A job-specific summary highlighting your most relevant experience for this role.
+              </p>
+            </div>
             <button
               type="button"
               onClick={handleCopySummary}
               className="min-h-[36px] rounded-md border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-700"
             >
-              {copied ? "Copied" : "Copy summary"}
+              {copied ? "✓ Copied" : "Copy summary"}
             </button>
           </div>
-          <p className="mt-3 text-zinc-300">{summary}</p>
+          <p className="mt-4 text-zinc-300 leading-relaxed">{summary}</p>
         </section>
       )}
     </div>
