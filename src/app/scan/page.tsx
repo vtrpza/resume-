@@ -277,7 +277,7 @@ function ScanContent() {
         className={loading ? "absolute h-0 w-0 overflow-hidden opacity-0 pointer-events-none" : undefined}
       >
         <h1 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
-          Scan your resume
+          Check your match before you apply
         </h1>
         <p className="mt-2 text-zinc-400">
           Upload your resume (PDF) and paste the job description. Your data is processed securely and not stored.

@@ -81,10 +81,14 @@ export function Paywall({
         className="w-full max-w-md rounded-xl bg-zinc-900 p-6 shadow-xl ring-1 ring-zinc-800"
       >
         <h2 id={DIALOG_TITLE_ID} className="text-lg font-semibold text-white">
-          You&apos;ve used your free scan
+          One free scan done—your next one&apos;s $2
         </h2>
         <p className="mt-2 text-sm text-zinc-400">
-          Get the same full report for your next application. $2 per scan, one-time payment, no subscription.
+          Every role has different wording. Check the next one before you
+          apply—same full report, $2, one-time. No subscription.
+        </p>
+        <p className="mt-2 text-xs text-zinc-500">
+          One-time charge. No recurring billing.
         </p>
         <div className="mt-6 space-y-3">
           <button
@@ -99,7 +103,7 @@ export function Paywall({
                 <span>Redirecting to checkout…</span>
               </span>
             ) : (
-              "Pay $2 — one-time"
+              "Run another scan — $2"
             )}
           </button>
         </div>
@@ -109,7 +113,7 @@ export function Paywall({
           disabled={isBusy}
           className="focus-ring mt-4 flex min-h-[44px] w-full items-center justify-center text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
         >
-          Maybe later
+          Not now
         </button>
       </div>
     </div>

@@ -29,7 +29,7 @@ export default function HomePage() {
               cta="hero_scan"
               className="focus-ring active:opacity-90 rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 sm:text-base"
             >
-              Scan your resume
+              Run my free scan
             </CtaLink>
             <CtaLink
               href="#preview"
@@ -37,7 +37,7 @@ export default function HomePage() {
               alsoCapture="sample_report_viewed"
               className="focus-ring active:opacity-90 rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-zinc-800 sm:text-base"
             >
-              See sample report
+              See what you&apos;ll get
             </CtaLink>
           </div>
         </section>
@@ -293,7 +293,11 @@ export default function HomePage() {
               $2 per scan
             </p>
             <p className="mt-2 text-zinc-400">
-              One free scan, then $2 for each report. One-time payment, no subscription.
+              One free scan, then $2 for each report. One-time payment, no
+              subscription.
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Use it again before your next application.
             </p>
           </div>
         </section>
@@ -353,17 +357,18 @@ export default function HomePage() {
         {/* Final CTA */}
         <section className="mx-auto mt-24 max-w-2xl text-center sm:mt-32">
           <h2 className="text-2xl font-semibold text-white sm:text-3xl">
-            Ready to see your match?
+            Don&apos;t send the next application blind
           </h2>
           <p className="mt-4 text-lg text-zinc-400">
-            One free scan, then $2 per report. No subscription.
+            Each role is different—check every one before you apply. One free
+            scan, then $2 per report. No subscription.
           </p>
           <CtaLink
             href="/scan"
             cta="final_scan"
             className="focus-ring active:opacity-90 mt-8 inline-block rounded-lg bg-white px-8 py-3.5 text-base font-medium text-zinc-900 transition hover:bg-zinc-200"
           >
-            Start your free scan
+            Run my free scan
           </CtaLink>
         </section>
       </main>

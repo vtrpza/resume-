@@ -20,7 +20,7 @@ export default function NotFound() {
           href="/scan"
           className="focus-ring active:opacity-90 inline-flex min-h-[44px] items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 px-6 py-3.5 text-center text-sm font-medium text-white transition hover:bg-zinc-800"
         >
-          Scan resume
+          Run free scan
         </Link>
       </div>
     </main>

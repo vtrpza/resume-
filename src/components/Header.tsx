@@ -20,7 +20,7 @@ export function Header() {
             cta="header_scan"
             className="focus-ring active:opacity-90 min-h-[44px] flex items-center rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
-            Scan resume
+            Run free scan
           </CtaLink>
         </div>
       </div>

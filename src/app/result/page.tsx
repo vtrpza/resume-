@@ -83,16 +83,20 @@ export default function ResultPage() {
       {/* Upsell: next scan = $2 */}
       <div className="mt-10 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
         <p className="text-sm font-medium text-zinc-300">
-          Scan another job for $2 — same full report.
+          Your next application deserves a check too
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          One-time payment per scan. No subscription.
+          Every job description shifts the match. Run another scan for $2—same
+          full report, one-time. No subscription.
+        </p>
+        <p className="mt-3 text-xs text-zinc-500">
+          Don&apos;t send the next one blind.
         </p>
         <Link
           href="/scan"
           className="focus-ring active:opacity-90 mt-4 inline-block min-h-[44px] rounded-lg bg-white px-6 py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
         >
-          Scan another resume
+          Run another scan — $2
         </Link>
       </div>
     </main>
