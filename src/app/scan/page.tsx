@@ -70,16 +70,13 @@ function ScanContent() {
 
     const sessionId = getOrCreateSessionId();
     async function check() {
-      if (searchParams.get("success") === "1") {
-        const res = await fetch(`/api/usage?sessionId=${encodeURIComponent(sessionId)}`);
-        if (res.ok) {
-          const u = await res.json();
-          if (u && typeof u.purchasedScans === "number" && u.purchasedScans > 0) {
-            setPremium();
-            capture("checkout_completed", { source: "redirect" });
-            capture("premium_unlocked", { source: "checkout" });
-          }
-        }
+      const stripeSessionId = searchParams.get("session_id");
+      if (searchParams.get("success") === "1" && stripeSessionId) {
+        await fetch("/api/checkout/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stripeSessionId }),
+        });
         router.replace("/scan", { scroll: false });
       }
 

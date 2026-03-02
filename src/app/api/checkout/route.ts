@@ -4,7 +4,7 @@ import { setRoute } from "@/lib/sentry";
 import { stripe, STRIPE_PRICE_SCAN } from "@/lib/stripe";
 
 const CHECKOUT_NOT_CONFIGURED =
-  "Checkout not configured. Set up Stripe and STRIPE_PRICE_SCAN for $2 per scan.";
+  "Payment is not available. Add a $2 one-time price in Stripe and set STRIPE_PRICE_SCAN in .env.local (see .env.example).";
 
 function getBaseUrl(request: Request): string {
   const url = process.env.NEXT_PUBLIC_APP_URL?.trim();
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/scan?success=1`,
+      success_url: `${baseUrl}/scan?success=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/scan`,
       metadata: {
         session_id: sessionId,
@@ -58,8 +58,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ url: session.url });
   } catch (err) {
     Sentry.captureException(err);
+    const message =
+      err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string"
+        ? (err as { message: string }).message
+        : "Checkout request failed";
     return NextResponse.json(
-      { error: "Checkout request failed" },
+      { error: message },
       { status: 500 }
     );
   }
