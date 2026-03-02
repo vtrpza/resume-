@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { getOrCreateSessionId } from "@/lib/cookies";
+import { capture } from "@/lib/analytics";
 
 export function LandingTracker() {
   useEffect(() => {
-    getOrCreateSessionId();
+    capture("landing_viewed");
   }, []);
-
   return null;
 }

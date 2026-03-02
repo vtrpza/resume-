@@ -67,7 +67,7 @@ export function Paywall({
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 flex min-h-[44px] w-full items-center justify-center text-sm text-zinc-500 hover:text-zinc-300"
+          className="mt-4 w-full text-sm text-zinc-500 hover:text-zinc-300"
         >
           Maybe later
         </button>

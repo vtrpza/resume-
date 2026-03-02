@@ -1,30 +1,52 @@
-const SESSION_KEY = "rgs_session_id";
-const FREE_SCAN_KEY = "rgs_free_scan_used";
-const PREMIUM_KEY = "rgs_premium";
+/**
+ * Cookie helpers for session ID and fallback paywall state (when DB unavailable).
+ */
+
+export const SESSION_COOKIE = "rgs_session";
+
+const FREE_SCAN_USED = "rgs_free_used";
+const PREMIUM = "rgs_premium";
+
+export function getSessionId(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`));
+  return match ? match[1].trim() : null;
+}
+
+export function setSessionId(id: string): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${SESSION_COOKIE}=${id}; path=/; max-age=31536000`;
+}
 
 export function getOrCreateSessionId(): string {
-  if (typeof window === "undefined") return "";
-  let id = localStorage.getItem(SESSION_KEY);
+  let id = getSessionId();
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem(SESSION_KEY, id);
+    setSessionId(id);
   }
   return id;
 }
 
-export function shouldShowPaywall(): boolean {
-  if (typeof window === "undefined") return false;
-  const used = localStorage.getItem(FREE_SCAN_KEY);
-  const premium = localStorage.getItem(PREMIUM_KEY);
-  return used === "1" && premium !== "1";
+export function getFreeScanUsed(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.cookie.includes(`${FREE_SCAN_USED}=1`);
+}
+
+export function getPremium(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.cookie.includes(`${PREMIUM}=1`);
 }
 
 export function setFreeScanUsed(): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(FREE_SCAN_KEY, "1");
+  if (typeof document === "undefined") return;
+  document.cookie = `${FREE_SCAN_USED}=1; path=/; max-age=31536000`;
 }
 
 export function setPremium(): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(PREMIUM_KEY, "1");
+  if (typeof document === "undefined") return;
+  document.cookie = `${PREMIUM}=1; path=/; max-age=31536000`;
+}
+
+export function shouldShowPaywall(): boolean {
+  return getFreeScanUsed() && !getPremium();
 }

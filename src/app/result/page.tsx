@@ -4,10 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function ResultPage() {
+  const [resumeLen, setResumeLen] = useState<number | null>(null);
+  const [jdLen, setJdLen] = useState<number | null>(null);
   const [analysis, setAnalysis] = useState<unknown>(null);
 
   useEffect(() => {
+    const resume = sessionStorage.getItem("scan_resumeText");
+    const jd = sessionStorage.getItem("scan_jd");
     const analysisJson = sessionStorage.getItem("scan_analysis");
+    if (resume !== null) setResumeLen(resume.length);
+    if (jd !== null) setJdLen(jd.length);
     if (analysisJson) {
       try {
         setAnalysis(JSON.parse(analysisJson) as unknown);
@@ -17,14 +23,13 @@ export default function ResultPage() {
     }
   }, []);
 
-  if (analysis === null) {
+  const hasData = resumeLen !== null || analysis !== null;
+
+  if (!hasData) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
+      <main className="mx-auto max-w-2xl px-6 py-12">
         <p className="text-zinc-400">No scan data. Start from the scan page.</p>
-        <Link
-          href="/scan"
-          className="mt-4 inline-block min-h-[44px] py-2 text-white underline hover:text-zinc-200"
-        >
+        <Link href="/scan" className="mt-4 inline-block text-white underline">
           Go to scan
         </Link>
       </main>
@@ -32,20 +37,24 @@ export default function ResultPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
-      <Link
-        href="/"
-        className="-mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
-      >
+    <main className="mx-auto max-w-2xl px-6 py-12">
+      <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
         ← Home
       </Link>
       <h1 className="mt-4 text-2xl font-semibold text-white">Scan result</h1>
 
-      <AnalysisView data={analysis} />
+      {analysis ? (
+        <AnalysisView data={analysis} />
+      ) : (
+        <p className="mt-4 text-zinc-400">
+          Extracted: resume text length {resumeLen ?? 0}, JD length {jdLen ?? 0}.
+          Analysis will appear here in Phase 3.
+        </p>
+      )}
 
       <Link
         href="/scan"
-        className="mt-8 inline-block min-h-[44px] py-2 text-sm text-zinc-500 hover:text-zinc-300"
+        className="mt-8 inline-block text-sm text-zinc-500 hover:text-zinc-300"
       >
         Scan another resume
       </Link>

@@ -1,0 +1,136 @@
+---
+alwaysApply: true
+---
+
+# Resume Gap Scanner — project rule
+
+## Product
+Build a U.S.-focused SaaS called Resume Gap Scanner.
+
+This is a narrow wedge product:
+- user uploads a resume PDF
+- user pastes a job description
+- app returns:
+  - match score
+  - missing keywords
+  - missing skills
+  - ATS risk flags
+  - weak bullets
+  - rewritten bullets
+  - tailored summary
+  - premium full rewrite / cover letter behind paywall
+
+This is NOT:
+- a job board
+- a CRM
+- an auto-apply bot
+- a browser extension in V1
+- a recruiting platform
+
+## Market
+Target U.S. job seekers only.
+Use English only.
+Use USD pricing only.
+
+Initial verticals:
+- software engineering
+- product
+- data / analytics
+- design
+
+## Stack
+Use:
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- Vercel
+- Neon Postgres
+- Vercel Blob
+- Stripe Checkout + Billing
+- PostHog
+- Sentry
+- OpenTelemetry
+
+## AI architecture
+Use two-model app architecture:
+
+1. Default runtime model:
+- OpenAI GPT-5-mini
+- use strict structured JSON output
+- use for analysis, extraction, ATS risks, missing keywords, bullet rewrites, tailored summary
+
+2. Premium / fallback runtime model:
+- OpenAI GPT-5
+- use for full rewrite, cover letter, low-confidence cases, extraction fallback
+
+Never fabricate candidate experience.
+Never invent achievements that are not present in the resume.
+
+## Product tone
+Tone must be:
+- credible
+- sharp
+- anti-BS
+- practical
+- not cheesy
+- not hype-heavy
+
+Avoid claims like:
+- guaranteed interviews
+- beat every ATS
+- instant job offers
+
+## Monetization
+Launch pricing:
+- Free: 1 full scan
+- Sprint: $12/week
+- Pro: $29/month
+
+## Analytics events
+Track:
+- landing_viewed
+- cta_clicked
+- sample_report_viewed
+- resume_uploaded
+- jd_pasted
+- scan_started
+- scan_completed
+- scan_failed
+- result_viewed
+- paywall_viewed
+- checkout_started
+- checkout_completed
+- premium_unlocked
+- export_clicked
+- cover_letter_generated
+
+## Engineering workflow
+Always work in phases.
+Before editing code for a large task:
+1. inspect the repo
+2. propose a brief plan
+3. identify files to create/update
+4. implement the smallest viable slice
+5. run validation
+6. summarize what changed and what remains
+
+Prefer editing existing patterns over inventing new ones.
+Keep the codebase simple and production-oriented.
+Do not overengineer abstractions in V1.
+
+## Validation
+After meaningful changes, run the most relevant checks available:
+- install dependencies if needed
+- lint
+- typecheck
+- tests if present
+- build when appropriate
+
+If a command fails, diagnose and fix before moving on unless blocked by missing secrets or external services.
+
+## Deliverable style
+When asked to build, always return:
+- what was changed
+- what is now working
+- what still needs env/setup
+- the next highest-leverage step
