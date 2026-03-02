@@ -178,9 +178,16 @@ function ScanContent() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 sm:w-auto"
+            className="w-full rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
           >
-            {loading ? "Analyzing…" : "Run scan"}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent"></span>
+                Analyzing your resume…
+              </span>
+            ) : (
+              "Run scan"
+            )}
           </button>
         </div>
       </form>
