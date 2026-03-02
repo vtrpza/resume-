@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-image: radial-gradient(
+    ellipse 80% 50% at 50% -20%,
+    rgba(255, 255, 255, 0.03),
+    transparent
+  );
+}

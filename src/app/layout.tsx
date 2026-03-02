@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/Header";
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Resume Gap Scanner",
@@ -21,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={dmSans.variable}>
       <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
         <Header />
         {children}

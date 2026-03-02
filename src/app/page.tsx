@@ -92,51 +92,49 @@ export default function HomePage() {
           <div className="mt-12 space-y-8">
             <div>
               <h3 className="text-lg font-medium text-white">
-                Know your match score
+                Focus on roles where you&apos;re a strong fit
               </h3>
               <p className="mt-2 text-zinc-400">
-                See how well your resume aligns with the job requirements before
-                you spend time on an application. Focus your energy on roles
-                where you have a strong match.
+                See where you stand before you spend time applying. Put energy
+                into roles where your resume actually matches.
               </p>
             </div>
             <div>
               <h3 className="text-lg font-medium text-white">
-                Find missing keywords and skills
+                Add the right keywords so your resume gets past filters
               </h3>
               <p className="mt-2 text-zinc-400">
-                Identify exactly which keywords and skills are in the job
-                description but missing from your resume. Add them strategically
-                to improve ATS compatibility.
+                We show exactly which keywords and skills are in the job but
+                missing from your resume. Add them where they fit.
               </p>
             </div>
             <div>
               <h3 className="text-lg font-medium text-white">
-                Spot ATS risks
+                Fix formatting and structure so ATS systems read your resume
               </h3>
               <p className="mt-2 text-zinc-400">
-                Get flagged for formatting issues, missing sections, or other
-                problems that could cause your resume to be filtered out by
-                applicant tracking systems.
+                Get flagged for layout issues, missing sections, or other
+                problems that can get you filtered out. Fix them before you
+                apply.
               </p>
             </div>
             <div>
               <h3 className="text-lg font-medium text-white">
-                Strengthen weak bullets
+                Turn vague bullets into clear, quantifiable impact
               </h3>
               <p className="mt-2 text-zinc-400">
-                See which bullets are too vague or weak, and get rewritten
-                versions that are more impactful and quantifiable—based only on
-                what&apos;s actually in your resume.
+                We only improve what&apos;s already on your resume—no invented
+                achievements. Get rewritten bullets that are stronger and
+                specific.
               </p>
             </div>
             <div>
               <h3 className="text-lg font-medium text-white">
-                Get a tailored summary
+                Highlight the experience that matters for this job
               </h3>
               <p className="mt-2 text-zinc-400">
-                Receive a job-specific summary that highlights your most relevant
-                experience for this particular role.
+                Get a job-specific summary that surfaces your most relevant
+                experience for this role.
               </p>
             </div>
           </div>
@@ -150,7 +148,13 @@ export default function HomePage() {
           <h2 className="text-center text-2xl font-semibold text-white sm:text-3xl">
             What you&apos;ll get
           </h2>
+          <p className="mt-2 text-center text-zinc-500">
+            Here&apos;s what one scan returns.
+          </p>
           <div className="mt-12 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8">
+            <p className="mb-4 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              Sample report
+            </p>
             <div className="space-y-6">
               <div>
                 <h3 className="text-sm font-medium text-zinc-500">
@@ -248,14 +252,13 @@ export default function HomePage() {
         {/* Trust / Credibility */}
         <section className="mx-auto mt-24 max-w-3xl sm:mt-32">
           <h2 className="text-center text-2xl font-semibold text-white sm:text-3xl">
-            Grounded analysis, no fabrication
+            Honest analysis, no fabrication
           </h2>
           <div className="mt-12 space-y-6 text-center">
             <p className="text-zinc-400">
-              We analyze what&apos;s actually in your resume. We don&apos;t
-              invent achievements, fabricate experience, or add skills you
-              don&apos;t have. Every suggestion is based on your real background
-              and how it maps to the job description.
+              We only use what&apos;s in your resume—no invented achievements or
+              skills. Every suggestion is grounded in your real background and
+              how it maps to the job.
             </p>
             <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 text-left">
               <p className="text-sm font-medium text-white mb-2">Your privacy matters</p>
@@ -273,10 +276,16 @@ export default function HomePage() {
           <h2 className="text-center text-2xl font-semibold text-white sm:text-3xl">
             Pricing
           </h2>
+          <p className="mt-2 text-center text-sm text-zinc-500">
+            Launch pricing—billing not active yet.
+          </p>
           <div className="mt-12 grid gap-6 sm:grid-cols-2">
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
               <h3 className="text-lg font-medium text-white">Free</h3>
               <p className="mt-2 text-3xl font-semibold text-white">$0</p>
+              <p className="mt-1 text-sm text-zinc-500">
+                One full scan to try everything.
+              </p>
               <ul className="mt-4 space-y-2 text-sm text-zinc-400">
                 <li>• 1 full scan</li>
                 <li>• Complete analysis report</li>
@@ -320,10 +329,12 @@ export default function HomePage() {
                 How does the scan work?
               </h3>
               <p className="mt-2 text-zinc-400">
-                We use AI to analyze your resume PDF and compare it against the
-                job description you provide. The system extracts keywords, skills,
-                and requirements, then generates a match score and identifies gaps,
-                risks, and improvement opportunities.
+                Upload your resume PDF and paste the job description. We
+                analyze both, extract keywords and requirements, and return a
+                structured report: match score, gaps, ATS risk flags, and
+                bullet rewrites. We flag formatting issues that can hurt ATS
+                parsing—we don&apos;t guarantee any system will pass, but we
+                help you fix obvious risks.
               </p>
             </div>
             <div>
@@ -331,31 +342,19 @@ export default function HomePage() {
                 Is my data private?
               </h3>
               <p className="mt-2 text-zinc-400">
-                Yes. We process your resume and job description securely and
-                don&apos;t store your documents after analysis. We don&apos;t share
-                your data with third parties or use it for training models.
+                Yes. We process your documents securely and don&apos;t store
+                them after analysis. We don&apos;t share your data with third
+                parties or use it for training.
               </p>
             </div>
             <div>
               <h3 className="text-lg font-medium text-white">
-                Will this help me pass ATS systems?
+                Do you rewrite or fabricate experience?
               </h3>
               <p className="mt-2 text-zinc-400">
-                We identify ATS risk flags in your resume (like problematic
-                formatting or missing sections) and suggest improvements. However,
-                we don&apos;t guarantee that any resume will pass every ATS system,
-                as different systems work differently.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-white">
-                Does the tool rewrite or fabricate experience?
-              </h3>
-              <p className="mt-2 text-zinc-400">
-                No. We only rewrite bullets that are already in your resume to
-                make them stronger and more impactful. We never invent achievements,
-                add skills you don&apos;t have, or fabricate experience. Every
-                suggestion is grounded in what&apos;s actually in your resume.
+                No. We only improve bullets that are already in your resume. We
+                never invent achievements, add skills you don&apos;t have, or
+                fabricate experience.
               </p>
             </div>
             <div>
@@ -363,9 +362,9 @@ export default function HomePage() {
                 Who is this for?
               </h3>
               <p className="mt-2 text-zinc-400">
-                Resume Gap Scanner is designed for U.S. job seekers in software
-                engineering, product, data/analytics, and design roles. The tool
-                works best when you have a specific job description to match against.
+                U.S. job seekers in software engineering, product,
+                data/analytics, and design. Works best when you have a specific
+                job description to match against.
               </p>
             </div>
           </div>
@@ -374,10 +373,10 @@ export default function HomePage() {
         {/* Final CTA */}
         <section className="mx-auto mt-24 max-w-2xl text-center sm:mt-32">
           <h2 className="text-2xl font-semibold text-white sm:text-3xl">
-            Ready to see how your resume matches?
+            Ready to see your match?
           </h2>
           <p className="mt-4 text-lg text-zinc-400">
-            Get your first scan free. No credit card required.
+            First scan free. No credit card required.
           </p>
           <CtaLink
             href="/scan"
