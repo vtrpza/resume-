@@ -250,8 +250,7 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
     rewrittenBullets.length > 0 &&
     weakBullets.length === rewrittenBullets.length;
 
-  const showLowQualityNotice =
-    data.extractionQuality === "low" || data.confidence < 0.7;
+  const showLowQualityNotice = data.extractionQuality === "low";
 
   const score = data.matchScore;
   const band = scoreBand(score);

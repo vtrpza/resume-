@@ -190,6 +190,9 @@ function normalizeBulletPairs(
   };
 }
 
+/** Common typography/safe Unicode to exclude from "garbled" non-ASCII ratio (curly quotes, dashes, bullet). */
+const SAFE_UNICODE = /[\u2013\u2014\u2018\u2019\u201C\u201D\u2022]/g;
+
 /**
  * Filter out cosmetic rewrites that are too similar to the original.
  * Uses word overlap and edit distance heuristics to identify low-value rewrites.
@@ -286,6 +289,7 @@ function simpleEditDistance(s1: string, s2: string): number {
 
 /**
  * Check if resume text indicates edge cases.
+ * Heuristics are tuned to avoid false positives: normal PDF typography and single merged tokens do not trigger "garbled".
  */
 export function detectEdgeCases(resumeText: string): {
   isEmpty: boolean;
@@ -298,10 +302,19 @@ export function detectEdgeCases(resumeText: string): {
   // Empty or very short
   const isEmpty = trimmed.length < 200;
 
-  // Garbled: excessive non-ASCII, merged words (heuristic)
-  const nonAsciiRatio =
-    (trimmed.match(/[^\x00-\x7F]/g) || []).length / trimmed.length;
-  const isGarbled = nonAsciiRatio > 0.3 || trimmed.match(/\S{30,}/g) !== null; // Very long words suggest merging
+  // Garbled: strong evidence only. (1) Non-ASCII: exclude safe typography, then require >50% suspicious chars.
+  // (2) Merged words: require at least one token ≥50 chars, or at least two tokens ≥25 chars (single 35-char token is not enough).
+  const withoutSafeUnicode = trimmed.replace(SAFE_UNICODE, " ");
+  const nonAsciiCount = (withoutSafeUnicode.match(/[^\x00-\x7F]/g) || []).length;
+  const nonAsciiRatio = trimmed.length > 0 ? nonAsciiCount / trimmed.length : 0;
+  const isGarbledByNonAscii = nonAsciiRatio > 0.5;
+
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const longTokens = tokens.filter((t) => t.length >= 25);
+  const hasVeryLongToken = tokens.some((t) => t.length >= 50);
+  const isGarbledByMerge = hasVeryLongToken || longTokens.length >= 2;
+
+  const isGarbled = isGarbledByNonAscii || isGarbledByMerge;
 
   // Very long
   const isVeryLong = trimmed.length > 12000;
@@ -345,9 +358,7 @@ export function adjustConfidenceForEdgeCases(
     adjusted = Math.min(adjusted, 0.5);
   }
 
-  if (edgeCases.isGarbled) {
-    adjusted = Math.min(adjusted, 0.6);
-  }
+  // Do not cap for isGarbled; rely on model's confidence/extractionQuality from the prompt note.
 
   if (edgeCases.isNonEnglish) {
     adjusted = Math.min(adjusted, 0.6);

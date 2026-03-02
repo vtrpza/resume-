@@ -120,6 +120,18 @@ async function runScanPipeline(resume: File, jd: string): Promise<ScanResult> {
 
   analysis.confidence = adjustConfidenceForEdgeCases(analysis.confidence, edgeCases);
 
+  setScanContext({
+    resumeExtractLength: resumeText.length,
+    model: analysis.model,
+    confidence: analysis.confidence,
+    extractionQuality: analysis.extractionQuality,
+    analysisValid: true,
+    edgeCaseEmpty: edgeCases.isEmpty,
+    edgeCaseGarbled: edgeCases.isGarbled,
+    edgeCaseVeryLong: edgeCases.isVeryLong,
+    edgeCaseNonEnglish: edgeCases.isNonEnglish,
+  });
+
   return {
     ok: true,
     error: null,

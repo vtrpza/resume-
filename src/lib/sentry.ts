@@ -36,6 +36,11 @@ export function setScanContext(ctx: {
   analysisValid?: boolean;
   /** Reason when validation fails after all retries (e.g. all_attempts_returned_null). */
   validationFailureReason?: string;
+  /** Edge case flags from detectEdgeCases (for debugging notice/fallback behavior). */
+  edgeCaseEmpty?: boolean;
+  edgeCaseGarbled?: boolean;
+  edgeCaseVeryLong?: boolean;
+  edgeCaseNonEnglish?: boolean;
 }): void {
   Sentry.setContext("scan", ctx);
 }
