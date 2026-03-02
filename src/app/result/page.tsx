@@ -34,6 +34,7 @@ export default function ResultPage() {
   }, []);
 
   const resultViewedSent = useRef(false);
+  const resultMissingSent = useRef(false);
   useEffect(() => {
     if (analysis == null || resultViewedSent.current) return;
     resultViewedSent.current = true;
@@ -49,6 +50,10 @@ export default function ResultPage() {
   }
 
   if (analysis === null) {
+    if (!resultMissingSent.current) {
+      resultMissingSent.current = true;
+      capture("result_missing");
+    }
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
         <p className="text-[var(--text-secondary)]">

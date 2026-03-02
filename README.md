@@ -178,13 +178,16 @@ npm run build     # Verify production build
    - Use the webhook secret in `STRIPE_WEBHOOK_SECRET`
    - Set the webhook endpoint to API version `2026-02-25.clover` (or your account default) so events match the app.
 
-### PostHog funnel
+### PostHog analytics
 
-All client events include `session_id` and the app identifies by that ID so you can build session-based funnels. Main funnel:
+All client events include `session_id`, `route`, and UTM params. The app identifies by session ID initially; when full app is on and the user verifies email, the client calls `alias` + `identify` with the verified identity ID so server-side events (e.g. Stripe webhook) and client events merge into one person in PostHog.
 
-1. `landing_viewed` → 2. `cta_clicked` / `sample_report_viewed` → 3. `scan_started` → 4. `scan_completed` → 5. `result_viewed` → 6. `paywall_viewed` (if not free) → 7. `checkout_started` → 8. `checkout_completed` / `premium_unlocked`
+**Events:** `landing_viewed`, `cta_clicked`, `sample_report_viewed`, `resume_uploaded`, `jd_pasted`, `scan_started`, `scan_completed`, `scan_failed`, `result_viewed`, `paywall_viewed`, `checkout_started`, `checkout_completed`, `checkout_failed`, `premium_unlocked`, `export_clicked`, copy events (`summary_copied`, `bullet_copied`, etc.). Lifecycle: `verification_email_sent`, `verification_success`, `verification_failed` (reason: expired | missing | error), `usage_check_failed` (status), `result_missing`.
 
-Revenue is sent with `checkout_completed` and `premium_unlocked` (`revenue: 2`, `currency: "USD"`). Conversions are also captured server-side from the Stripe webhook (`source: "webhook"`) so payments are counted even if the user never returns from checkout. In PostHog, create a Funnel with these steps and optionally break down by `session_id` or by person (identified by app session).
+**Recommended funnel (full app):**  
+`landing_viewed` → `cta_clicked` / `sample_report_viewed` → `verification_email_sent` → `verification_success` → `scan_started` → `scan_completed` → `result_viewed` → `paywall_viewed` (if not free) → `checkout_started` → `checkout_completed` / `premium_unlocked`
+
+**Revenue:** Attached to `checkout_completed` and `premium_unlocked` (`revenue: 2`, `currency: "USD"`). Conversions are also captured server-side from the Stripe webhook (`source: "webhook"`) so payments are counted even if the user never returns from checkout. In PostHog, create a Funnel with the steps above; break down by person (after identity merge) or by UTM for acquisition.
 
 ## Current Status
 

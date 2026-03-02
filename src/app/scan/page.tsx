@@ -12,7 +12,7 @@ import {
   setPremium,
   getOrCreateSessionId,
 } from "@/lib/cookies";
-import { capture, captureFileUpload, captureTextInput, captureScanCompleted, captureScanFailed, captureCheckoutCompleted, getFileSizeBucket, getTextLengthBucket } from "@/lib/analytics";
+import { capture, captureFileUpload, captureTextInput, captureScanCompleted, captureScanFailed, captureCheckoutCompleted, aliasAndIdentify, getFileSizeBucket, getTextLengthBucket } from "@/lib/analytics";
 import { ScanLoadingView } from "@/components/ScanLoadingView";
 import { PageLoadingView } from "@/components/PageLoadingView";
 
@@ -104,6 +104,7 @@ function ScanContent() {
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const identityMergeDone = useRef(false);
 
   useEffect(() => {
     setRoute("scan");
@@ -157,6 +158,11 @@ function ScanContent() {
           const u = await res.json().catch(() => null);
           if (u != null && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
             setShowPaywall(u.scanCount >= 1 + u.purchasedScans);
+            if (typeof u.identityId === "string" && !identityMergeDone.current) {
+              identityMergeDone.current = true;
+              aliasAndIdentify(u.identityId);
+              capture("verification_success");
+            }
             if (u.purchasedScans > 0) {
               setPremium();
               captureCheckoutCompleted({ source: "redirect" });
@@ -171,10 +177,12 @@ function ScanContent() {
           } else {
             setUsageError(true);
             setShowPaywall(false);
+            capture("usage_check_failed", { status: 401 });
           }
         } else if (res) {
           setUsageError(true);
           setShowPaywall(false);
+          capture("usage_check_failed", { status: res.status });
         }
         router.replace("/scan", { scroll: false });
         return;
@@ -188,6 +196,9 @@ function ScanContent() {
       } else if (verifyParam === "error") {
         setVerifyMessage("Something went wrong. Please try again.");
       }
+      if (verifyParam && (verifyParam === "expired" || verifyParam === "missing" || verifyParam === "error")) {
+        capture("verification_failed", { reason: verifyParam });
+      }
       if (verifyParam) {
         router.replace("/scan", { scroll: false });
       }
@@ -200,6 +211,7 @@ function ScanContent() {
         setUsageError(!!res);
         setShowPaywall(false);
         setRequiresVerification(false);
+        capture("usage_check_failed", { status: res?.status ?? null });
         return;
       }
       if (res.status === 401) {
@@ -210,6 +222,7 @@ function ScanContent() {
         } else {
           setUsageError(true);
           setShowPaywall(false);
+          capture("usage_check_failed", { status: 401 });
         }
         setUsageError(false);
         return;
@@ -220,6 +233,11 @@ function ScanContent() {
         const u = await res.json().catch(() => null);
         if (u != null && typeof u.scanCount === "number" && typeof u.purchasedScans === "number") {
           setShowPaywall(u.scanCount >= 1 + u.purchasedScans);
+          if (typeof u.identityId === "string" && !identityMergeDone.current) {
+            identityMergeDone.current = true;
+            aliasAndIdentify(u.identityId);
+            capture("verification_success");
+          }
           return;
         }
       }
@@ -332,7 +350,10 @@ function ScanContent() {
           </p>
         ) : (
           <VerifyEmailForm
-            onSent={() => setVerifyEmailSent(true)}
+            onSent={() => {
+              capture("verification_email_sent");
+              setVerifyEmailSent(true);
+            }}
             onError={(msg) => setVerifyMessage(msg)}
           />
         )}

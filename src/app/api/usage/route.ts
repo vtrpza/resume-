@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
           { status: 503 }
         );
       }
-      return NextResponse.json(usage);
+      return NextResponse.json({ ...usage, identityId: identity.id });
     }
 
     // Legacy: client-supplied sessionId (when full app is off)

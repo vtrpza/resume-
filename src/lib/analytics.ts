@@ -19,6 +19,11 @@
  * - premium_unlocked: source, revenue, currency
  * - export_clicked: format
  * - cover_letter_generated: (when feature exists)
+ * - verification_email_sent
+ * - verification_success
+ * - verification_failed: reason (expired | missing | error)
+ * - usage_check_failed: status?, reason?
+ * - result_missing
  */
 
 import { getOrCreateSessionId } from "@/lib/cookies";
@@ -110,6 +115,8 @@ type PostHogWindow = {
   posthog?: {
     capture: (e: string, p?: Record<string, unknown>) => void;
     identify: (distinctId: string) => void;
+    alias: (alias: string) => void;
+    people: { set: (props: Record<string, unknown>) => void };
   };
 };
 
@@ -123,6 +130,27 @@ export function identifySession(sessionId: string): void {
     if (typeof window !== "undefined") {
       const ph = (window as unknown as PostHogWindow).posthog;
       if (ph?.identify) ph.identify(sessionId);
+    }
+  } catch {
+    // no-op
+  }
+}
+
+/**
+ * Merge anonymous session with verified identity and identify as identityId.
+ * Call once when the user has verified email (e.g. when usage returns identityId).
+ * Aliases identityId to the current distinct_id so server-side events (e.g. webhook) merge into the same person.
+ * Sets person property verified_at for cohorts.
+ */
+export function aliasAndIdentify(identityId: string): void {
+  if (!key || !identityId || typeof window === "undefined") return;
+  try {
+    const ph = (window as unknown as PostHogWindow).posthog;
+    if (!ph) return;
+    if (ph.alias) ph.alias(identityId);
+    if (ph.identify) ph.identify(identityId);
+    if (ph.people?.set) {
+      ph.people.set({ verified_at: new Date().toISOString() });
     }
   } catch {
     // no-op
