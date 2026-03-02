@@ -221,7 +221,7 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
   const band = scoreBand(score);
 
   return (
-    <div className="mt-8 space-y-8">
+    <div className="mt-8 space-y-12">
       {showLowQualityNotice && (
         <p className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
           We had trouble reading some parts of your PDF; results may be less
@@ -263,11 +263,13 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                 <p className="mt-1 text-xs text-zinc-500">
                   Terms from the job description not in your resume. Adding them where they fit can improve ATS compatibility.
                 </p>
-                <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {data.missingKeywords.map((k, i) => (
-                    <li key={i}>{k}</li>
+                    <span key={i} className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                      {k}
+                    </span>
                   ))}
-                </ul>
+                </div>
               </section>
             )}
             {data.missingSkills.length > 0 && (
@@ -278,11 +280,13 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                 <p className="mt-1 text-xs text-zinc-500">
                   Skills the job requires that aren&apos;t clearly present. Only add skills you actually have.
                 </p>
-                <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {data.missingSkills.map((s, i) => (
-                    <li key={i}>{s}</li>
+                    <span key={i} className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                      {s}
+                    </span>
                   ))}
-                </ul>
+                </div>
               </section>
             )}
           </>
@@ -301,7 +305,7 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
             ATS risk flags
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
-            Formatting or content issues that could affect how applicant tracking systems read your resume.
+            Formatting or content issues that could affect how applicant tracking systems read your resume. Address these before you apply.
           </p>
           {data.atsRisks.length > 0 ? (
             <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
@@ -399,12 +403,54 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
               </button>
             </div>
             <p className="mt-4 text-zinc-300 leading-relaxed">{summary}</p>
-            <p className="mt-4 text-xs text-zinc-500">
-              Use the summary in your application or cover letter; address the gaps and risks above before you apply.
-            </p>
           </section>
         </div>
       )}
+
+      {/* Next steps */}
+      <div className="space-y-5">
+        <SectionLabel>Next steps</SectionLabel>
+        <section className={cardClass}>
+          <h2 className="text-sm font-medium text-zinc-400">
+            What to do next
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500 mb-4">
+            Prioritize these actions before you apply.
+          </p>
+          <ul className="space-y-3 text-sm text-zinc-300">
+            {data.atsRisks.length > 0 && (
+              <li className="flex items-start gap-2">
+                <span className="text-zinc-500 mt-0.5">1.</span>
+                <span>Fix ATS risk flags first—formatting issues can prevent your resume from being parsed correctly.</span>
+              </li>
+            )}
+            {data.missingKeywords.length > 0 && (
+              <li className="flex items-start gap-2">
+                <span className="text-zinc-500 mt-0.5">2.</span>
+                <span>Add missing keywords where they naturally fit in your experience. Only include terms that accurately describe your work.</span>
+              </li>
+            )}
+            {canPair && (
+              <li className="flex items-start gap-2">
+                <span className="text-zinc-500 mt-0.5">3.</span>
+                <span>Consider using the suggested bullet rewrites to strengthen your resume&apos;s impact.</span>
+              </li>
+            )}
+            {summary && (
+              <li className="flex items-start gap-2">
+                <span className="text-zinc-500 mt-0.5">{data.atsRisks.length > 0 || data.missingKeywords.length > 0 || canPair ? "4." : "1."}</span>
+                <span>Use the tailored summary in your application or cover letter to highlight your most relevant experience.</span>
+              </li>
+            )}
+            {!data.atsRisks.length && !data.missingKeywords.length && !canPair && !summary && (
+              <li className="flex items-start gap-2">
+                <span className="text-zinc-500 mt-0.5">1.</span>
+                <span>Review your match score and consider how your experience aligns with the role requirements.</span>
+              </li>
+            )}
+          </ul>
+        </section>
+      </div>
     </div>
   );
 }

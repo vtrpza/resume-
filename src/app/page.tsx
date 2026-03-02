@@ -153,46 +153,51 @@ export default function HomePage() {
             What you&apos;ll get
           </h2>
           <p className="mt-2 text-center text-zinc-500">
-            Here&apos;s what one scan returns.
+            One scan returns a report like this—match score, gaps, risks, and concrete improvements.
           </p>
           <div className="mt-12 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 sm:p-8">
             <p className="mb-6 text-xs font-semibold uppercase tracking-wider text-zinc-500">
               Sample report
             </p>
             <div className="space-y-8">
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Match score</h3>
-                <p className="mt-2 text-3xl font-semibold text-white">72%</p>
-                <p className="mt-1 text-sm text-zinc-400">
+              {/* Match score */}
+              <div className="rounded-lg border border-zinc-700 bg-zinc-900/80 p-5 ring-2 ring-amber-500/30">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">Match score</p>
+                <p className="text-4xl font-bold tracking-tight text-white sm:text-5xl">72%</p>
+                <p className="mt-2 text-sm text-zinc-400">
                   Overall alignment with job requirements
                 </p>
-                <p className="mt-2 text-xs text-zinc-500">
+                <p className="mt-3 text-sm text-zinc-300">
                   Good match. Adding missing keywords could improve your score.
                 </p>
               </div>
+
+              {/* Gaps to close */}
               <div className="border-t border-zinc-800 pt-8">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Gaps to close</p>
-                <h3 className="mt-3 text-sm font-medium text-zinc-400">Missing keywords</h3>
+                <h3 className="mt-4 text-sm font-medium text-zinc-400">Missing keywords</h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Terms in the job description not found in your resume
                 </p>
-                <ul className="mt-3 space-y-1.5 text-sm text-zinc-300">
-                  <li>• CI/CD</li>
-                  <li>• Kubernetes</li>
-                  <li>• GraphQL</li>
-                </ul>
-                <h3 className="mt-5 text-sm font-medium text-zinc-400">Missing skills</h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">CI/CD</span>
+                  <span className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">Kubernetes</span>
+                  <span className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">GraphQL</span>
+                </div>
+                <h3 className="mt-6 text-sm font-medium text-zinc-400">Missing skills</h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Skills mentioned in the job that aren&apos;t clearly present
                 </p>
-                <ul className="mt-3 space-y-1.5 text-sm text-zinc-300">
-                  <li>• Cloud architecture</li>
-                  <li>• Performance optimization</li>
-                </ul>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">Cloud architecture</span>
+                  <span className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300">Performance optimization</span>
+                </div>
               </div>
+
+              {/* Risks to fix */}
               <div className="border-t border-zinc-800 pt-8">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Risks to fix</p>
-                <h3 className="mt-3 text-sm font-medium text-zinc-400">ATS risk flags</h3>
+                <h3 className="mt-4 text-sm font-medium text-zinc-400">ATS risk flags</h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Formatting or content issues that could affect ATS compatibility
                 </p>
@@ -201,29 +206,42 @@ export default function HomePage() {
                   <li>• No quantified achievements in first 3 bullets</li>
                 </ul>
               </div>
+
+              {/* Improvements */}
               <div className="border-t border-zinc-800 pt-8">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Improvements</p>
-                <h3 className="mt-3 text-sm font-medium text-zinc-400">Weak bullets → Rewritten</h3>
+                <h3 className="mt-4 text-sm font-medium text-zinc-400">Weak bullets → Rewritten</h3>
                 <p className="mt-1 text-xs text-zinc-500">
-                  Stronger, more impactful versions based on your actual experience
+                  Stronger, more impactful versions based on your actual experience—no invented metrics.
                 </p>
-                <div className="mt-4 space-y-3 text-sm">
-                  <div>
+                <div className="mt-4 space-y-5 text-sm">
+                  <div className="space-y-2">
                     <p className="text-xs font-medium text-zinc-500">Original</p>
-                    <p className="mt-1 text-zinc-400 line-through">
+                    <p className="text-zinc-400 line-through">
                       Responsible for managing team projects
                     </p>
                     <p className="mt-3 text-xs font-medium text-zinc-500">Suggested</p>
-                    <p className="mt-1 text-zinc-300">
-                      Led cross-functional team of 8 to deliver 3 major product
-                      launches on schedule, reducing time-to-market by 20%
+                    <p className="text-zinc-300">
+                      Led team projects from planning through delivery; coordinated stakeholders and tracked milestones across multiple workstreams
+                    </p>
+                  </div>
+                  <div className="border-t border-zinc-800 pt-4 space-y-2">
+                    <p className="text-xs font-medium text-zinc-500">Original</p>
+                    <p className="text-zinc-400 line-through">
+                      Worked on improving application performance
+                    </p>
+                    <p className="mt-3 text-xs font-medium text-zinc-500">Suggested</p>
+                    <p className="text-zinc-300">
+                      Improved application performance through code refactoring and caching strategies; focused on reducing load times and improving reliability
                     </p>
                   </div>
                 </div>
               </div>
+
+              {/* Summary */}
               <div className="border-t border-zinc-800 pt-8">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Summary</p>
-                <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+                <div className="mt-4 flex flex-wrap items-start justify-between gap-2">
                   <h3 className="text-sm font-medium text-zinc-400">
                     Tailored summary
                   </h3>
