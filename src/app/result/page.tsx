@@ -96,7 +96,7 @@ export default function ResultPage() {
             Run the next role before you apply
           </p>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            Every job description shifts the match. Same full report—cover letter, full rewrite, gaps, and bullets—for $2. One-time, no subscription.
+            Each job changes the match. One scan = one decision. Same full report for $2—cover letter, full rewrite, gaps, and bullets. One-time, no subscription.
           </p>
           <p className="mt-3 text-xs text-[var(--text-faint)]">
             Don&apos;t send the next one blind.
@@ -116,9 +116,9 @@ export default function ResultPage() {
 function buildReportMarkdown(analysis: ScanAnalysis): string {
   const verdictLabels: Record<ApplyRecommendation, string> = {
     apply_now: "Strong fit",
-    apply_with_edits: "Good fit — minor edits needed",
-    improve_first: "Partial fit — improve first",
-    low_priority: "Low priority",
+    apply_with_edits: "Good fit with a few meaningful gaps",
+    improve_first: "Partial fit",
+    low_priority: "Weak fit for this role",
   };
   const lines: string[] = [
     "# Resume Match Report",
@@ -130,36 +130,41 @@ function buildReportMarkdown(analysis: ScanAnalysis): string {
     `## Match score: ${analysis.matchScore}%`,
     "",
   ];
-  if (analysis.matchScoreReasoning) {
+  if (analysis.scoreMeaning) {
+    lines.push(analysis.scoreMeaning, "");
+  } else if (analysis.matchScoreReasoning) {
     lines.push(analysis.matchScoreReasoning, "");
   }
 
-  // Summary (moved up)
   lines.push("## Fit summary", "", analysis.tailoredSummary, "");
 
-  // Gaps to close
   lines.push("## Where to improve", "");
-
-  // Check if gapGroups is present
   const hasGapGroups = analysis.gapGroups && analysis.gapGroups.length > 0;
 
+  if (analysis.missingSignalInsights && analysis.missingSignalInsights.length > 0) {
+    lines.push("### Context for key gaps", "");
+    analysis.missingSignalInsights.forEach((insight) => {
+      const parts = [insight.term];
+      if (insight.gapType) parts.push(`(${insight.gapType})`);
+      if (insight.whyItMatters) parts.push(`— ${insight.whyItMatters}`);
+      lines.push(`- ${parts.join(" ")}`);
+    });
+    lines.push("");
+  }
+
   if (hasGapGroups) {
-    // Render by theme groups
-    analysis.gapGroups!.forEach((group) => {
-      lines.push(`### ${group.theme}`, "");
-      group.items.forEach((item) => {
-        lines.push(`- ${item}`);
-      });
+    analysis.gapGroups!.forEach((group, idx) => {
+      lines.push(`### ${idx === 0 ? "Biggest blockers" : group.theme}`, "");
+      group.items.forEach((item) => lines.push(`- ${item}`));
       lines.push("");
     });
   } else {
-    // Fallback to Critical/Other/flat structure
     const hasCriticalKeywords = analysis.criticalMissingKeywords && analysis.criticalMissingKeywords.length > 0;
     const hasCriticalSkills = analysis.criticalMissingSkills && analysis.criticalMissingSkills.length > 0;
     const hasCriticalGaps = hasCriticalKeywords || hasCriticalSkills;
 
     if (hasCriticalGaps) {
-      lines.push("### Critical gaps", "");
+      lines.push("### Biggest blockers", "");
       if (hasCriticalKeywords) {
         lines.push("**Keywords:**", "", ...analysis.criticalMissingKeywords!.map((k) => `- ${k}`), "");
       }
@@ -169,14 +174,13 @@ function buildReportMarkdown(analysis: ScanAnalysis): string {
       lines.push("");
     }
 
-    // Other gaps (excluding items already in critical)
     const criticalKeywordSet = new Set(analysis.criticalMissingKeywords || []);
     const criticalSkillSet = new Set(analysis.criticalMissingSkills || []);
     const otherKeywords = analysis.missingKeywords.filter((k) => !criticalKeywordSet.has(k));
     const otherSkills = analysis.missingSkills.filter((s) => !criticalSkillSet.has(s));
 
     if (otherKeywords.length > 0 || otherSkills.length > 0) {
-      lines.push("### Other gaps", "");
+      lines.push("### Secondary gaps", "");
       if (otherKeywords.length > 0) {
         lines.push("**Keywords:**", "", ...otherKeywords.map((k) => `- ${k}`), "");
       }
@@ -185,12 +189,11 @@ function buildReportMarkdown(analysis: ScanAnalysis): string {
       }
       lines.push("");
     } else if (!hasCriticalGaps) {
-      // Fallback: show all gaps if no critical gaps structure
       if (analysis.missingKeywords.length > 0) {
-        lines.push("### Missing keywords", "", ...analysis.missingKeywords.map((k) => `- ${k}`), "");
+        lines.push("### Secondary gaps — keywords", "", ...analysis.missingKeywords.map((k) => `- ${k}`), "");
       }
       if (analysis.missingSkills.length > 0) {
-        lines.push("### Missing skills", "", ...analysis.missingSkills.map((s) => `- ${s}`), "");
+        lines.push("### Secondary gaps — skills", "", ...analysis.missingSkills.map((s) => `- ${s}`), "");
       }
       if (analysis.missingKeywords.length === 0 && analysis.missingSkills.length === 0) {
         lines.push("No major keyword or skill gaps identified.", "");
@@ -210,6 +213,9 @@ function buildReportMarkdown(analysis: ScanAnalysis): string {
     lines.push("## Bullet improvements", "");
     analysis.weakBullets.forEach((weak, i) => {
       lines.push("**Original:**", weak, "", "**Suggested:**", analysis.rewrittenBullets[i] ?? "", "");
+      if (analysis.rewriteReasons?.[i]) {
+        lines.push(`_${analysis.rewriteReasons[i]}_`, "");
+      }
     });
     lines.push("");
   }
@@ -269,19 +275,19 @@ function verdictConfig(
       };
     case "apply_with_edits":
       return {
-        label: "Good fit — minor edits needed",
+        label: "Good fit with a few meaningful gaps",
         ring: "ring-emerald-500/20 bg-emerald-950/10",
         badge: "bg-teal-950/50 border-teal-700/60 text-teal-200",
       };
     case "improve_first":
       return {
-        label: "Partial fit — improve first",
+        label: "Partial fit",
         ring: "ring-amber-500/30 bg-amber-950/20",
         badge: "bg-amber-950/50 border-amber-700/60 text-amber-200",
       };
     case "low_priority":
       return {
-        label: "Low priority",
+        label: "Weak fit for this role",
         ring: "ring-red-500/20 bg-red-950/10",
         badge: "bg-red-950/50 border-red-700/60 text-red-200",
       };
@@ -319,7 +325,9 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
   const [copiedBulletIndex, setCopiedBulletIndex] = useState<number | null>(null);
   const [copiedCoverLetter, setCopiedCoverLetter] = useState(false);
   const [copiedFullRewrite, setCopiedFullRewrite] = useState(false);
+  const [showAllRewrites, setShowAllRewrites] = useState(false);
   const summary = data.tailoredSummary;
+  const REWRITES_VISIBLE_INITIAL = 5;
 
   const handleCopySummary = useCallback(async () => {
     if (!summary) return;
@@ -413,16 +421,25 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
           <p className="mt-2 text-sm text-[var(--text-muted)]">
             Match score — overall alignment with job requirements
           </p>
+          {(data.scoreMeaning ?? data.matchScoreReasoning) && (
+            <p className="mt-3 text-sm text-[var(--text-secondary)] text-center max-w-md">
+              {data.scoreMeaning ?? (() => {
+                const r = data.matchScoreReasoning!;
+                const first = r.split(/[.!]/)[0]?.trim();
+                return first ? `${first}.` : r;
+              })()}
+            </p>
+          )}
           <p className="mt-4 text-sm text-[var(--text-secondary)] text-center max-w-md">
             {data.applyRecommendationNote}
           </p>
-          <p className="mt-2 text-xs text-[var(--text-faint)] text-center max-w-md">
-            {data.applyRecommendation === "apply_now" && "Use the fit summary below in your application or cover letter."}
-            {data.applyRecommendation === "apply_with_edits" && "Address the critical gaps above where you have experience, then apply."}
-            {data.applyRecommendation === "improve_first" && "Focus on the critical gaps and bullet improvements before applying."}
-            {data.applyRecommendation === "low_priority" && "Consider prioritizing roles that align more closely with your experience."}
+          <p className="mt-2 text-base font-semibold text-[var(--text-primary)] text-center">
+            {data.applyRecommendation === "apply_now" && "Apply now."}
+            {data.applyRecommendation === "apply_with_edits" && "Make a few edits, then apply."}
+            {data.applyRecommendation === "improve_first" && "Improve alignment before applying."}
+            {data.applyRecommendation === "low_priority" && "Deprioritize this role."}
           </p>
-          {data.matchScoreReasoning && (
+          {data.matchScoreReasoning && !data.scoreMeaning && data.matchScoreReasoning.length > 80 && (
             <p className="mt-3 text-xs text-[var(--text-faint)] text-center max-w-md">
               {data.matchScoreReasoning}
             </p>
@@ -463,24 +480,56 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
         <p className="mb-1 text-xs text-[var(--text-faint)]">
           Some of these may reflect experience you have but haven&apos;t stated explicitly—only add what genuinely applies.
         </p>
+        {data.missingSignalInsights && data.missingSignalInsights.length > 0 && (
+          <section className={cardClass}>
+            <h2 className="text-sm font-medium text-zinc-400">
+              Context for key gaps
+            </h2>
+            <ul className="mt-3 space-y-2">
+              {data.missingSignalInsights.map((insight, i) => (
+                <li key={i} className="flex flex-col gap-1">
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-zinc-300">{insight.term}</span>
+                    {insight.gapType && (
+                      <span className="rounded bg-zinc-800/80 px-1.5 py-0.5 text-[10px] font-medium uppercase text-zinc-400">
+                        {insight.gapType === "fully_missing" ? "Not in resume" : insight.gapType === "phrasing" ? "Phrasing" : "Experience gap"}
+                      </span>
+                    )}
+                  </span>
+                  {insight.whyItMatters && (
+                    <span className="text-xs text-zinc-500">{insight.whyItMatters}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {(() => {
           // Check if gapGroups is present and non-empty
           const hasGapGroups = data.gapGroups && data.gapGroups.length > 0;
 
           if (hasGapGroups) {
-            // Render by theme groups
+            // First group = biggest blockers, rest = themed secondary
             return (
               <>
                 {data.gapGroups!.map((group, groupIdx) => (
-                  <section key={groupIdx} className={cardClass}>
+                  <section
+                    key={groupIdx}
+                    className={groupIdx === 0 ? `${cardClass} border-l-4 border-red-800/60` : cardClass}
+                  >
                     <h2 className="text-sm font-medium text-zinc-400">
-                      {group.theme}
+                      {groupIdx === 0 ? "Biggest blockers" : group.theme}
                     </h2>
+                    {groupIdx === 0 && (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Highest impact for this role.
+                      </p>
+                    )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       {group.items.map((item, itemIdx) => (
                         <span
                           key={itemIdx}
-                          className="inline-flex items-center rounded-md bg-zinc-800/80 px-2.5 py-1 text-xs font-medium text-zinc-300"
+                          className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ${groupIdx === 0 ? "bg-red-950/40 border border-red-800/50 text-red-300" : "bg-zinc-800/80 text-zinc-300"}`}
                         >
                           {item}
                         </span>
@@ -519,10 +568,10 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
               {hasCriticalGaps && (
                 <section className={`${cardClass} border-l-4 border-red-800/60`}>
                   <h2 className="text-sm font-medium text-zinc-400">
-                    Critical gaps
+                    Biggest blockers
                   </h2>
                   <p className="mt-1 text-xs text-zinc-500">
-                    These are the most important gaps for this role—core requirements, repeatedly mentioned skills, or explicitly mandatory items.
+                    Core requirements or repeatedly mentioned—most important for this role.
                   </p>
                   {hasCriticalKeywords && (
                     <div className="mt-3">
@@ -556,10 +605,10 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                   {otherKeywords.length > 0 && (
                     <section className={cardClass}>
                       <h2 className="text-sm font-medium text-zinc-400">
-                        Other missing keywords
+                        Secondary gaps — keywords
                       </h2>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Lower priority than critical gaps. Terms from the job description not in your resume—add where they fit.
+                        Lower priority; add where they fit.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {otherKeywords.map((k, i) => (
@@ -573,10 +622,10 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                   {otherSkills.length > 0 && (
                     <section className={cardClass}>
                       <h2 className="text-sm font-medium text-zinc-400">
-                        Other missing skills
+                        Secondary gaps — skills
                       </h2>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Lower priority. Skills the job requires that aren&apos;t clearly present—only add skills you actually have.
+                        Lower priority; only add skills you actually have.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {otherSkills.map((s, i) => (
@@ -595,10 +644,10 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                   {data.missingKeywords.length > 0 && (
                     <section className={cardClass}>
                       <h2 className="text-sm font-medium text-zinc-400">
-                        Missing keywords
+                        Secondary gaps — keywords
                       </h2>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Terms from the job description not in your resume. Listed in order of importance to this role. Adding them where they fit can improve ATS compatibility.
+                        Terms from the job description not in your resume—add where they fit.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {data.missingKeywords.map((k, i) => (
@@ -612,10 +661,10 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                   {data.missingSkills.length > 0 && (
                     <section className={cardClass}>
                       <h2 className="text-sm font-medium text-zinc-400">
-                        Missing skills
+                        Secondary gaps — skills
                       </h2>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Skills the job requires that aren&apos;t clearly present. Listed in order of importance to this role. Only add skills you actually have.
+                        Skills the job requires that aren&apos;t clearly present—only add what you have.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {data.missingSkills.map((s, i) => (
@@ -633,51 +682,26 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
         })()}
       </div>
 
-      {/* Risks to fix */}
-      <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "300ms" }}>
-        <SectionLabel>Format & parsing</SectionLabel>
-        <section className={`${cardClass} border-l-4 border-amber-700/50`}>
-          <h2 className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-            <span className="text-amber-400/90" aria-hidden>⚠</span>
-            ATS risk flags
-          </h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            Formatting or content issues that could affect how applicant tracking systems read your resume. Address these before you apply.
-          </p>
-          {data.atsRisks.length > 0 ? (
-            <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
-              {data.atsRisks.map((r, i) => (
-                <li key={i}>{r}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-zinc-400">
-              No ATS risk flags identified.
-            </p>
-          )}
-        </section>
-      </div>
-
-      {/* Improvements */}
+      {/* Bullet improvements — before ATS for progressive disclosure */}
       {(canPair || weakBullets.length > 0 || rewrittenBullets.length > 0) ? (
-        <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "400ms" }}>
-          <SectionLabel>Improvements</SectionLabel>
+        <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "300ms" }}>
+          <SectionLabel>Bullet improvements</SectionLabel>
           {canPair ? (
             <section className={`${cardClass} border-l-4 border-emerald-800/50`}>
               <h2 className="text-sm font-medium text-zinc-400">
-                Bullet improvements
+                Stronger, role-aligned versions
               </h2>
               <p className="mt-1 text-xs text-zinc-500">
-                Stronger, more impactful versions using only what&apos;s in your resume—no invented metrics.
+                Use only what applies—no invented metrics. Copy and drop into your resume.
               </p>
               <ul className="mt-4 space-y-6">
-                {weakBullets.map((weak, i) => {
+                {(showAllRewrites ? weakBullets : weakBullets.slice(0, REWRITES_VISIBLE_INITIAL)).map((weak, i) => {
                   const rewritten = rewrittenBullets[i] ?? "";
                   const criticalTerms = [
                     ...(data.criticalMissingKeywords ?? []),
                     ...(data.missingKeywords.slice(0, 5)),
                   ];
-                  const improvementTag = bulletImprovementLabel(weak, rewritten, criticalTerms);
+                  const improvementTag = data.rewriteReasons?.[i] ?? bulletImprovementLabel(weak, rewritten, criticalTerms);
                   return (
                     <li key={i} className="space-y-2 border-t border-[var(--border-subtle)] pt-5 first:border-t-0 first:pt-0">
                       <p className="text-xs font-medium text-[var(--text-faint)]">Original</p>
@@ -702,6 +726,15 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                   );
                 })}
               </ul>
+              {weakBullets.length > REWRITES_VISIBLE_INITIAL && !showAllRewrites && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllRewrites(true)}
+                  className="focus-ring mt-4 text-sm font-medium text-[var(--accent)] hover:underline"
+                >
+                  Show {weakBullets.length - REWRITES_VISIBLE_INITIAL} more improvements
+                </button>
+              )}
             </section>
           ) : (
             <>
@@ -729,6 +762,89 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
           )}
         </div>
       ) : null}
+
+      {/* Format & parsing (ATS) */}
+      <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "350ms" }}>
+        <SectionLabel>Format & parsing</SectionLabel>
+        <section className={`${cardClass} border-l-4 border-amber-700/50`}>
+          <h2 className="text-sm font-medium text-zinc-400 flex items-center gap-2">
+            <span className="text-amber-400/90" aria-hidden>⚠</span>
+            ATS risk flags
+          </h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Formatting or content issues that could affect how applicant tracking systems read your resume. Address these before you apply.
+          </p>
+          {data.atsRisks.length > 0 ? (
+            <ul className="mt-3 list-inside list-disc space-y-1.5 text-zinc-300">
+              {data.atsRisks.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-zinc-400">
+              No ATS risk flags identified.
+            </p>
+          )}
+        </section>
+      </div>
+
+      {/* Next steps — before premium content */}
+      <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "400ms" }}>
+        <SectionLabel>What to do next</SectionLabel>
+        <section className={cardClass}>
+          <h2 className="text-sm font-medium text-[var(--text-muted)]">
+            {data.applyRecommendation === "apply_now" && "What to do next: Apply now."}
+            {data.applyRecommendation === "apply_with_edits" && "What to do next: Make a few edits, then apply."}
+            {data.applyRecommendation === "improve_first" && "What to do next: Improve alignment before applying."}
+            {data.applyRecommendation === "low_priority" && "What to do next: Deprioritize this role."}
+          </h2>
+          <ul className="mt-4 space-y-3 text-sm text-[var(--text-secondary)]">
+            {data.atsRisks.length > 0 && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
+                <span>Fix format & parsing issues first so ATS can read your resume correctly.</span>
+              </li>
+            )}
+            {(data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">{data.atsRisks.length > 0 ? "2." : "1."}</span>
+                <span>Address the biggest blockers above where you have experience.</span>
+              </li>
+            )}
+            {canPair && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">
+                  {data.atsRisks.length > 0 || (data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 ? "3." : "1."}
+                </span>
+                <span>Use the stronger bullet versions above to improve impact and role alignment.</span>
+              </li>
+            )}
+            {summary && (data.applyRecommendation === "apply_now" || data.applyRecommendation === "apply_with_edits") && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">
+                  {data.atsRisks.length > 0 || (data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 || canPair ? "4." : "1."}
+                </span>
+                <span>Drop the fit summary into your application or cover letter.</span>
+              </li>
+            )}
+            {data.applyRecommendation === "low_priority" && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
+                <span>Run a scan on roles that align more closely with your experience—you&apos;ll get clearer, more actionable reports.</span>
+              </li>
+            )}
+            {!data.atsRisks.length && !(data.criticalMissingKeywords?.length ?? 0) && !(data.criticalMissingSkills?.length ?? 0) && !canPair && data.applyRecommendation !== "low_priority" && !(summary && (data.applyRecommendation === "apply_now" || data.applyRecommendation === "apply_with_edits")) && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
+                <span>Use the report above to polish and apply when ready.</span>
+              </li>
+            )}
+          </ul>
+          <p className="mt-4 text-xs text-[var(--text-faint)]">
+            This report is for this role only. Run another scan for your next target role to get a new match.
+          </p>
+        </section>
+      </div>
 
       {/* Cover letter — premium */}
       {data.coverLetter && (
@@ -803,65 +919,6 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
           </section>
         </div>
       )}
-
-      {/* Next steps */}
-      <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "500ms" }}>
-        <SectionLabel>Next steps</SectionLabel>
-        <section className={cardClass}>
-          <h2 className="text-sm font-medium text-[var(--text-muted)]">
-            What to do next
-          </h2>
-          <p className="mt-2 text-sm font-medium text-[var(--text-primary)]">
-            Based on your match score and gap profile:{" "}
-            {data.applyRecommendation === "apply_now" && "Apply now."}
-            {data.applyRecommendation === "apply_with_edits" && "Apply after minor edits."}
-            {data.applyRecommendation === "improve_first" && "Improve before applying."}
-            {data.applyRecommendation === "low_priority" && "Low-priority target compared to stronger matches."}
-          </p>
-          <ul className="mt-4 space-y-3 text-sm text-[var(--text-secondary)]">
-            {data.atsRisks.length > 0 && (
-              <li className="flex items-start gap-2">
-                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
-                <span>Fix format & parsing issues first so ATS can read your resume correctly.</span>
-              </li>
-            )}
-            {(data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 && (
-              <li className="flex items-start gap-2">
-                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">{data.atsRisks.length > 0 ? "2." : "1."}</span>
-                <span>Address the critical gaps above where you have experience—they matter most for this role.</span>
-              </li>
-            )}
-            {canPair && (
-              <li className="flex items-start gap-2">
-                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">
-                  {data.atsRisks.length > 0 || (data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 ? "3." : "1."}
-                </span>
-                <span>Use the stronger bullet versions above to improve impact and role alignment.</span>
-              </li>
-            )}
-            {summary && (data.applyRecommendation === "apply_now" || data.applyRecommendation === "apply_with_edits") && (
-              <li className="flex items-start gap-2">
-                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">
-                  {data.atsRisks.length > 0 || (data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 || canPair ? "4." : "1."}
-                </span>
-                <span>Drop the fit summary into your application or cover letter.</span>
-              </li>
-            )}
-            {data.applyRecommendation === "low_priority" && (
-              <li className="flex items-start gap-2">
-                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
-                <span>Run a scan on roles that align more closely with your experience—you&apos;ll get clearer, more actionable reports.</span>
-              </li>
-            )}
-            {!data.atsRisks.length && !(data.criticalMissingKeywords?.length ?? 0) && !(data.criticalMissingSkills?.length ?? 0) && !canPair && data.applyRecommendation !== "low_priority" && !(summary && (data.applyRecommendation === "apply_now" || data.applyRecommendation === "apply_with_edits")) && (
-              <li className="flex items-start gap-2">
-                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
-                <span>Use the report above to polish and apply when ready.</span>
-              </li>
-            )}
-          </ul>
-        </section>
-      </div>
     </div>
   );
 }

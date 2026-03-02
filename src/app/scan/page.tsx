@@ -555,7 +555,7 @@ function ScanContent() {
       </form>
       </div>
 
-      <div className="sticky bottom-0 -mx-4 bg-[var(--bg-deep)] py-4 px-4 sm:static sm:mx-0 sm:bg-transparent sm:p-0">
+      <div className="sticky bottom-0 -mx-4 mt-4 bg-[var(--bg-deep)] py-4 px-4 sm:static sm:mx-0 sm:bg-transparent sm:p-0">
         <button
           form="scan-form"
           type="submit"

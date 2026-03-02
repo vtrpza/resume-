@@ -4,7 +4,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
-import type { ScanAnalysis, GapGroup, ApplyRecommendation, ExperienceRewrite } from "./ai-analysis-contract";
+import type { ScanAnalysis, GapGroup, ApplyRecommendation, ExperienceRewrite, MissingSignalInsight } from "./ai-analysis-contract";
 import {
   normalizeConfidence,
   normalizeMatchScore,
@@ -101,6 +101,18 @@ export function validateAndNormalizeAnalysis(
     normalizedBullets.rewritten
   );
 
+  // Optional rewriteReasons: trim to match filtered bullet count (1:1 with rewrittenBullets)
+  let rewriteReasons: string[] | undefined;
+  if (Array.isArray(obj.rewriteReasons)) {
+    const rawReasons = obj.rewriteReasons
+      .slice(0, filteredBullets.rewritten.length)
+      .map((r) => (typeof r === "string" ? r.trim().slice(0, 60) : ""))
+      .filter((r) => r.length > 0);
+    if (rawReasons.length === filteredBullets.rewritten.length) {
+      rewriteReasons = rawReasons;
+    }
+  }
+
   // Validate tailoredSummary
   const tailoredSummary = validateString(
     obj.tailoredSummary,
@@ -123,6 +135,16 @@ export function validateAndNormalizeAnalysis(
     const s = obj.matchScoreReasoning.trim().slice(0, 200);
     if (s.length >= 20) matchScoreReasoning = s;
   }
+
+  // Optional scoreMeaning (20-80 chars)
+  let scoreMeaning: string | undefined;
+  if (typeof obj.scoreMeaning === "string") {
+    const s = obj.scoreMeaning.trim().slice(0, 80);
+    if (s.length >= 20) scoreMeaning = s;
+  }
+
+  // Optional missingSignalInsights
+  const missingSignalInsights = validateMissingSignalInsights(obj.missingSignalInsights);
 
   // applyRecommendation: validate or derive from score
   let applyRecommendation: ApplyRecommendation;
@@ -157,6 +179,9 @@ export function validateAndNormalizeAnalysis(
     confidence,
     extractionQuality,
     ...(matchScoreReasoning !== undefined && { matchScoreReasoning }),
+    ...(scoreMeaning !== undefined && { scoreMeaning }),
+    ...(missingSignalInsights.length > 0 && { missingSignalInsights }),
+    ...(rewriteReasons !== undefined && { rewriteReasons }),
   };
 
   // Add optional critical gap fields if present
@@ -279,6 +304,34 @@ function validateExtractionQuality(value: unknown): "high" | "medium" | "low" {
     return value;
   }
   return "medium"; // Default to medium if invalid
+}
+
+/**
+ * Validate missingSignalInsights array.
+ */
+function validateMissingSignalInsights(value: unknown): MissingSignalInsight[] {
+  if (!Array.isArray(value)) return [];
+
+  const gapTypes = ["fully_missing", "phrasing", "experience_gap"] as const;
+  const insights: MissingSignalInsight[] = [];
+
+  for (const item of value.slice(0, 10)) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const term = typeof o.term === "string" ? o.term.trim().slice(0, 100) : "";
+    if (!term) continue;
+
+    const insight: MissingSignalInsight = { term };
+    if (typeof o.whyItMatters === "string") {
+      const s = o.whyItMatters.trim().slice(0, 80);
+      if (s.length > 0) insight.whyItMatters = s;
+    }
+    if (typeof o.gapType === "string" && gapTypes.includes(o.gapType as (typeof gapTypes)[number])) {
+      insight.gapType = o.gapType as MissingSignalInsight["gapType"];
+    }
+    insights.push(insight);
+  }
+  return insights;
 }
 
 /**
