@@ -114,11 +114,12 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           minLength: 20,
           maxLength: 200,
           description:
-            "Optional 1-2 sentence explanation of why the match score was assigned. E.g. 'Strong keyword overlap in React and TypeScript; experience level aligns; minor ATS formatting risks.'",
+            "Required 1-2 sentence explanation of why the match score was assigned. E.g. 'Strong keyword overlap in React and TypeScript; experience level aligns; minor ATS formatting risks.'",
         },
       },
       required: [
         "matchScore",
+        "matchScoreReasoning",
         "missingKeywords",
         "missingSkills",
         "atsRisks",
@@ -127,6 +128,7 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
         "tailoredSummary",
         "confidence",
         "extractionQuality",
+        "matchScoreReasoning",
       ],
       additionalProperties: false,
     },
@@ -167,7 +169,7 @@ CRITICAL RULES:
 5. Confidence score must reflect actual extraction quality and content clarity.
 
 OUTPUT REQUIREMENTS:
-- matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%). Optionally include matchScoreReasoning (20-200 chars) with a brief justification.
+- matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%). Always include matchScoreReasoning (20-200 chars) with a brief justification for the score.
 - missingKeywords: Exact terms from JD that are absent or not clearly present in resume. Include technical terms, tools, frameworks.
 - missingSkills: Skills explicitly required in JD but not evidenced in resume. Must be mentioned in JD.
 - atsRisks: Specific, actionable ATS parsing issues. Be concrete: "Two-column layout", "Missing skills section", "Non-standard date format".
@@ -334,6 +336,8 @@ export const EXAMPLE_OUTPUT_HIGH_QUALITY: ScanAnalysis = {
     "Full-stack engineer with 6 years of experience building scalable web applications using React, Node.js, and PostgreSQL. Proven track record of improving application performance and leading technical initiatives in fast-paced startup environments.",
   confidence: 0.95,
   extractionQuality: "high",
+  matchScoreReasoning:
+    "Strong keyword overlap in React and Node.js; experience level and scope align with role; minor ATS risks from skills section formatting.",
 };
 
 /**
@@ -372,6 +376,8 @@ export const EXAMPLE_OUTPUT_MEDIUM_QUALITY: ScanAnalysis = {
     "Software engineer with 3 years of experience developing web applications. Strong foundation in React and Python with experience in full-stack development and bug resolution.",
   confidence: 0.75,
   extractionQuality: "medium",
+  matchScoreReasoning:
+    "Moderate keyword match; several JD technologies and cloud skills not evidenced. Two-column layout and embedded skills may affect ATS parsing.",
 };
 
 /**
@@ -406,6 +412,8 @@ export const EXAMPLE_OUTPUT_LOW_QUALITY: ScanAnalysis = {
     "Software professional with experience in web development. Limited details available due to resume parsing issues. Recommend manual review.",
   confidence: 0.45,
   extractionQuality: "low",
+  matchScoreReasoning:
+    "Low score due to incomplete extraction and missing evidence for key JD requirements; parsing quality limits confidence in analysis.",
 };
 
 // ============================================================================

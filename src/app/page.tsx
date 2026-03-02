@@ -3,7 +3,11 @@ import { CtaLink } from "@/components/CtaLink";
 
 export default function HomePage() {
   return (
-    <>
+    <div className="relative min-h-screen">
+      <div
+        className="landing-bg pointer-events-none fixed inset-0 -z-10"
+        aria-hidden="true"
+      />
       <LandingTracker />
       <main className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-24">
         {/* Hero Section */}
@@ -345,6 +349,6 @@ export default function HomePage() {
           </CtaLink>
         </section>
       </main>
-    </>
+    </div>
   );
 }
