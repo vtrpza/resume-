@@ -51,7 +51,31 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           minItems: 0,
           maxItems: 15,
           description:
-            "Skills or competencies the job explicitly requires that are not evidenced in the resume. Must be skills mentioned in JD, not inferred requirements.",
+            "Skills or competencies the job explicitly requires that are not evidenced in the resume. Must be skills mentioned in JD, not inferred requirements. Output in priority order: most critical first.",
+        },
+        criticalMissingKeywords: {
+          type: "array",
+          items: {
+            type: "string",
+            minLength: 1,
+            maxLength: 100,
+          },
+          minItems: 0,
+          maxItems: 5,
+          description:
+            "OPTIONAL: The 3-5 most critical missing keywords that are core to the role, repeatedly stated in the JD, or explicitly mandatory. These are the gaps that matter most for this position. If not using this field, ensure missingKeywords is ordered by priority (most critical first).",
+        },
+        criticalMissingSkills: {
+          type: "array",
+          items: {
+            type: "string",
+            minLength: 1,
+            maxLength: 100,
+          },
+          minItems: 0,
+          maxItems: 5,
+          description:
+            "OPTIONAL: The 3-5 most critical missing skills that are core to the role, repeatedly stated in the JD, or explicitly mandatory. These are the gaps that matter most for this position. If not using this field, ensure missingSkills is ordered by priority (most critical first).",
         },
         atsRisks: {
           type: "array",
@@ -63,7 +87,7 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           minItems: 0,
           maxItems: 10,
           description:
-            "Concrete ATS parsing risks. Examples: 'Two-column layout may confuse parsers', 'Missing skills section', 'Non-standard date format', 'Graphics/tables not parseable'. Must be specific and actionable.",
+            "Concrete ATS parsing risks that materially affect parsing or screening. Limit to 3-5 high-impact risks. Prefer quality over quantity. Do not list multiple variations of the same issue. Omit generic nitpicks that rarely change outcomes. Examples: 'Two-column layout may confuse parsers', 'Missing skills section', 'Non-standard date format'. Must be specific and actionable.",
         },
         weakBullets: {
           type: "array",
@@ -75,7 +99,7 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           minItems: 0,
           maxItems: 10,
           description:
-            "Original bullet points from the resume that are vague, passive, lack metrics, or use weak verbs. Quote or paraphrase the exact bullet. Must exist in the resume text.",
+            "Original bullet points from the resume that are vague, passive, lack metrics, or use weak verbs. Quote or paraphrase the exact bullet. Must exist in the resume text. ONLY include bullets where you can provide a genuinely stronger rewrite—omit bullets that are already strong or where the rewrite would be only a minor cosmetic change.",
         },
         rewrittenBullets: {
           type: "array",
@@ -87,14 +111,14 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           minItems: 0,
           maxItems: 10,
           description:
-            "Improved versions of weakBullets, in the same order (1:1 mapping). Use strong action verbs, quantify outcomes, show impact. Must only use facts/achievements present in the resume. Do not invent metrics or results.",
+            "Improved versions of weakBullets, in the same order (1:1 mapping). Each rewrite must materially improve: clarity, specificity, action/result framing (where evidence exists), terminology aligned to the job, and professional strength. Stay grounded in the original—never invent metrics, team sizes, impact, or scope not supported by the source. FORBIDDEN: cosmetic adjective swaps, empty intensifiers ('successfully', 'effectively' without substance), fake specificity, fake metrics. Only output pairs where the rewrite is clearly stronger than the original.",
         },
         tailoredSummary: {
           type: "string",
           minLength: 50,
           maxLength: 500,
           description:
-            "2-3 sentence professional summary tailored to this specific job. Highlight relevant experience, skills, and achievements from the resume that align with the JD. Use only facts present in the resume. No fabrication.",
+            "2-3 sentence professional summary tailored to this specific job. TONE: Strategic and useful—'this is how your profile aligns with this role'—not robotic or defensive. For strong fit (high matchScore): Emphasize alignment clearly; highlight 2-3 relevant strengths from the resume; mention only meaningful gaps. For weak fit (low matchScore): Be honest about where the candidate is strong and where the mismatch is material; frame as a fair fit assessment, not a rejection or apology. Use only facts present in the resume. No fabrication.",
         },
         confidence: {
           type: "number",
@@ -128,8 +152,8 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
         "tailoredSummary",
         "confidence",
         "extractionQuality",
-        "matchScoreReasoning",
       ],
+      // Note: criticalMissingKeywords and criticalMissingSkills are optional
       additionalProperties: false,
     },
   },
@@ -142,6 +166,8 @@ export interface ScanAnalysis {
   matchScore: number; // 0-100
   missingKeywords: string[];
   missingSkills: string[];
+  criticalMissingKeywords?: string[]; // Optional: 3-5 most critical keywords
+  criticalMissingSkills?: string[]; // Optional: 3-5 most critical skills
   atsRisks: string[];
   weakBullets: string[];
   rewrittenBullets: string[]; // 1:1 with weakBullets, same order
@@ -170,14 +196,29 @@ CRITICAL RULES:
 
 OUTPUT REQUIREMENTS:
 - matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%). Always include matchScoreReasoning (20-200 chars) with a brief justification for the score.
-- missingKeywords: Exact terms from JD that are absent or not clearly present in resume. Include technical terms, tools, frameworks.
-- missingSkills: Skills explicitly required in JD but not evidenced in resume. Must be mentioned in JD.
-- atsRisks: Specific, actionable ATS parsing issues. Be concrete: "Two-column layout", "Missing skills section", "Non-standard date format".
-- weakBullets: Quote or paraphrase actual weak bullets from resume. Must exist in the text.
-- rewrittenBullets: One improved bullet per weakBullet, same order. Use strong verbs, quantify where possible, but ONLY use metrics/facts from the resume.
-- tailoredSummary: 2-3 sentences positioning candidate for this role using ONLY resume facts. No invented achievements.
+
+GAP PRIORITIZATION:
+- criticalMissingKeywords (OPTIONAL): Output 3-5 most critical missing keywords that are: core to the role, repeatedly stated in the JD, or explicitly mandatory. These are the gaps that really matter for this position.
+- criticalMissingSkills (OPTIONAL): Output 3-5 most critical missing skills using the same criteria.
+- missingKeywords: All other missing keywords from JD, ordered by priority (most critical first if not using criticalMissingKeywords).
+- missingSkills: All other missing skills, ordered by priority (most critical first if not using criticalMissingSkills).
+
+ATS RISKS:
+- atsRisks: Limit to 3-5 high-impact risks that materially affect parsing or screening. Prefer quality over quantity. Do not list multiple variations of the same issue. Omit generic nitpicks that rarely change outcomes. Be concrete: "Two-column layout may confuse parsers", "Missing skills section", "Non-standard date format".
+
+BULLET REWRITES:
+- weakBullets: ONLY include bullets where you can provide a genuinely stronger rewrite. Omit bullets that are already strong or where the rewrite would be only a minor cosmetic change.
+- rewrittenBullets: Each rewrite must materially improve: clarity, specificity, action/result framing (where evidence exists), terminology aligned to the job, and professional strength. FORBIDDEN: cosmetic adjective swaps, empty intensifiers ('successfully', 'effectively' without substance), fake specificity, fake metrics. Stay grounded—never invent metrics, team sizes, impact, or scope not supported by the source.
+
+TAILORED SUMMARY:
+- tailoredSummary: 2-3 sentences. TONE: Strategic and useful—'this is how your profile aligns with this role'—not robotic or defensive. For strong fit: Emphasize alignment clearly; highlight 2-3 relevant strengths; mention only meaningful gaps. For weak fit: Be honest about strengths and material mismatches; frame as a fair fit assessment, not a rejection. Use only facts from the resume. No fabrication.
+
+QUALITY METRICS:
 - confidence (0-1): 1.0 = excellent extraction, clear content. <0.7 = poor parsing, ambiguous, very short. Use to flag fallback needs.
 - extractionQuality: Assess PDF text extraction quality. "high" = clean structured text. "medium" = some formatting issues. "low" = significant parsing problems.
+
+REPORT QUALITY:
+Output should feel strategic and human-useful, not a generic keyword checklist. Prioritize what matters most. Focus on actionable insights that help the candidate understand fit and improve their resume.
 
 TONE: Professional, credible, practical. Avoid hype or guarantees.`;
 
@@ -316,8 +357,10 @@ export function normalizeMatchScore(value: unknown): number {
  */
 export const EXAMPLE_OUTPUT_HIGH_QUALITY: ScanAnalysis = {
   matchScore: 85,
-  missingKeywords: ["GraphQL", "Docker", "AWS Lambda"],
-  missingSkills: ["Kubernetes orchestration", "Event-driven architecture"],
+  missingKeywords: ["GraphQL"],
+  missingSkills: [],
+  criticalMissingKeywords: ["Docker", "AWS Lambda"],
+  criticalMissingSkills: ["Kubernetes orchestration", "Event-driven architecture"],
   atsRisks: [
     "Skills section uses icons instead of text, may not parse",
     "Date format inconsistent (MM/YYYY vs YYYY-MM)",
@@ -333,7 +376,7 @@ export const EXAMPLE_OUTPUT_HIGH_QUALITY: ScanAnalysis = {
     "Managed database migrations for 5 major releases, ensuring zero-downtime deployments and data integrity",
   ],
   tailoredSummary:
-    "Full-stack engineer with 6 years of experience building scalable web applications using React, Node.js, and PostgreSQL. Proven track record of improving application performance and leading technical initiatives in fast-paced startup environments.",
+    "Full-stack engineer with 6 years of experience building scalable web applications using React, Node.js, and PostgreSQL. Strong alignment with the role's core requirements—proven track record of improving application performance and leading technical initiatives in fast-paced startup environments. Consider adding Docker and AWS Lambda experience to strengthen your fit.",
   confidence: 0.95,
   extractionQuality: "high",
   matchScoreReasoning:
@@ -345,22 +388,16 @@ export const EXAMPLE_OUTPUT_HIGH_QUALITY: ScanAnalysis = {
  */
 export const EXAMPLE_OUTPUT_MEDIUM_QUALITY: ScanAnalysis = {
   matchScore: 62,
-  missingKeywords: [
-    "TypeScript",
-    "CI/CD",
-    "Microservices",
-    "REST API",
-    "Agile",
-  ],
-  missingSkills: [
+  missingKeywords: ["REST API", "Agile"],
+  missingSkills: ["Test-driven development"],
+  criticalMissingKeywords: ["TypeScript", "CI/CD", "Microservices"],
+  criticalMissingSkills: [
     "Cloud infrastructure (AWS/GCP/Azure)",
-    "Test-driven development",
     "System design",
   ],
   atsRisks: [
     "Two-column layout may confuse ATS parsers",
     "No clear skills section—skills embedded in experience bullets",
-    "Contact information in header graphic may not parse",
   ],
   weakBullets: [
     "Developed features for web application",
@@ -373,7 +410,7 @@ export const EXAMPLE_OUTPUT_MEDIUM_QUALITY: ScanAnalysis = {
     "Collaborated with cross-functional team of 8 in daily standups and sprint planning, contributing to on-time delivery of 4 major releases",
   ],
   tailoredSummary:
-    "Software engineer with 3 years of experience developing web applications. Strong foundation in React and Python with experience in full-stack development and bug resolution.",
+    "Software engineer with 3 years of experience developing web applications. Strong foundation in React and Python with demonstrated full-stack development and bug resolution capabilities. The role requires TypeScript, CI/CD, and cloud infrastructure experience that isn't clearly evidenced in your resume—consider highlighting any related experience or learning plans.",
   confidence: 0.75,
   extractionQuality: "medium",
   matchScoreReasoning:
@@ -385,31 +422,28 @@ export const EXAMPLE_OUTPUT_MEDIUM_QUALITY: ScanAnalysis = {
  */
 export const EXAMPLE_OUTPUT_LOW_QUALITY: ScanAnalysis = {
   matchScore: 35,
-  missingKeywords: [
+  missingKeywords: ["GraphQL"],
+  missingSkills: ["API design"],
+  criticalMissingKeywords: [
     "React",
     "Node.js",
     "PostgreSQL",
     "Docker",
     "Kubernetes",
-    "AWS",
-    "CI/CD",
-    "GraphQL",
   ],
-  missingSkills: [
+  criticalMissingSkills: [
     "Modern JavaScript frameworks",
     "Cloud platforms",
     "Container orchestration",
-    "API design",
   ],
   atsRisks: [
     "Text extraction appears incomplete or garbled",
     "Missing or unclear skills section",
-    "Experience dates may not parse correctly",
   ],
   weakBullets: [],
   rewrittenBullets: [],
   tailoredSummary:
-    "Software professional with experience in web development. Limited details available due to resume parsing issues. Recommend manual review.",
+    "Software professional with experience in web development. Limited details available due to resume parsing issues—this analysis may not reflect your full qualifications. The role requires React, Node.js, and cloud platform experience that isn't clearly evidenced. Recommend manual review and ensuring your resume is in a text-parseable format.",
   confidence: 0.45,
   extractionQuality: "low",
   matchScoreReasoning:
