@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { setScanStage, setScanContext, captureScanError } from "@/lib/sentry";
 import { extractTextFromPdf } from "@/lib/pdf";
 import { analyzeResume, type AnalysisResult } from "@/lib/analyze";
+import { generatePremiumContent } from "@/lib/premium-generate";
 import { detectEdgeCases, adjustConfidenceForEdgeCases } from "@/lib/ai-analysis-validation";
 import { FAILURE_MODES } from "@/lib/ai-analysis-contract";
 import { getUsage, getOrCreateAndIncrementScan } from "@/lib/db";
@@ -167,6 +168,17 @@ async function runScanPipeline(resume: File, jd: string): Promise<ScanResult> {
     edgeCaseVeryLong: edgeCases.isVeryLong,
     edgeCaseNonEnglish: edgeCases.isNonEnglish,
   });
+
+  // Premium: cover letter + full experience rewrite (sequential, graceful failure)
+  try {
+    const premium = await generatePremiumContent(resumeText, jd, analysis);
+    if (premium) {
+      analysis.coverLetter = premium.coverLetter;
+      analysis.fullRewrite = premium.fullRewrite;
+    }
+  } catch {
+    // Scan still succeeds without premium content
+  }
 
   return {
     ok: true,

@@ -1,42 +1,145 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Premium palette: warm dark, single accent
+   --------------------------------------------------------------------------- */
+:root {
+  --bg-deep: #0c0a09;
+  --bg-surface: rgba(28, 25, 23, 0.6);
+  --bg-surface-hover: rgba(41, 37, 36, 0.7);
+  --border-subtle: rgba(68, 64, 60, 0.6);
+  --border-muted: rgba(87, 83, 78, 0.4);
+  --text-primary: #fafaf9;
+  --text-secondary: #d6d3d1;
+  --text-muted: #a8a29e;
+  --text-faint: #78716c;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-muted: rgba(245, 158, 11, 0.15);
+  --ring-offset: var(--bg-deep);
+}
+
+/* Typography: display (serif), body (sans), mono (data) */
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+}
+
+.font-body {
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
 h1,
 h2,
 h3 {
-  font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-display), ui-serif, Georgia, serif;
 }
 
+/* Result page: full report uses display + body mix */
+.result-page {
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+.result-page h1,
+.result-page h2,
+.result-page h3 {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+}
+
+/* Body: warm dark + radial highlight */
 body {
+  background-color: var(--bg-deep);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
   background-image: radial-gradient(
     ellipse 80% 50% at 50% -20%,
-    rgba(255, 255, 255, 0.03),
-    transparent
+    rgba(255, 255, 255, 0.04),
+    transparent 50%
   );
+  pointer-events: none;
+  z-index: -1;
 }
 
-/* Landing page: subtle dark cold neon background (cyan/teal/blue at low opacity) */
+/* Noise texture overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 192px 192px;
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Landing page: dot grid + richer gradient mesh */
 .landing-bg {
   background-image:
     radial-gradient(
       ellipse 80% 60% at 50% -10%,
-      rgba(34, 211, 238, 0.07),
+      rgba(245, 158, 11, 0.06),
       transparent 55%
     ),
     radial-gradient(
       ellipse 60% 40% at 85% 110%,
-      rgba(20, 184, 166, 0.055),
+      rgba(251, 191, 36, 0.04),
       transparent 50%
     ),
     radial-gradient(
       ellipse 50% 30% at 15% 95%,
-      rgba(59, 130, 246, 0.045),
+      rgba(217, 119, 6, 0.04),
       transparent 45%
     );
 }
 
+.landing-dot-grid {
+  background-image: radial-gradient(circle, var(--border-muted) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: 0 0;
+}
+
+/* Card treatment: layered shadow instead of flat border */
+.card-surface {
+  background: var(--bg-surface);
+  box-shadow:
+    0 0 0 1px var(--border-subtle),
+    0 4px 6px -1px rgba(0, 0, 0, 0.25),
+    0 2px 4px -2px rgba(0, 0, 0, 0.2);
+}
+
+.card-surface:hover {
+  background: var(--bg-surface-hover);
+  box-shadow:
+    0 0 0 1px var(--border-muted),
+    0 10px 15px -3px rgba(0, 0, 0, 0.3),
+    0 4px 6px -4px rgba(0, 0, 0, 0.2);
+}
+
+/* Section divider: thin gradient line */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border-subtle) 20%,
+    var(--border-subtle) 80%,
+    transparent
+  );
+}
+
 @layer utilities {
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
+    @apply focus-visible:outline-none;
+  }
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px var(--ring-offset), 0 0 0 4px var(--accent);
   }
 
   .animate-pulse-soft {
@@ -47,12 +150,16 @@ body {
     animation: scan-shimmer 2.5s ease-in-out infinite;
   }
 
-  /* Premium loading: smooth ring spinner on light CTA (dark stroke on white btn) */
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s ease-out both;
+  }
+
+  /* Premium loading: ring spinner (warm accent stroke) */
   .spinner-ring {
     width: 1.25rem;
     height: 1.25rem;
     border: 2px solid rgba(0, 0, 0, 0.08);
-    border-top-color: rgb(24 24 27); /* zinc-900 */
+    border-top-color: var(--accent);
     border-radius: 50%;
     animation: spinner-ring 0.7s linear infinite;
   }
@@ -81,5 +188,16 @@ body {
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

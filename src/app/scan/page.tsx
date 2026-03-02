@@ -17,9 +17,11 @@ import { ScanLoadingView } from "@/components/ScanLoadingView";
 import { PageLoadingView } from "@/components/PageLoadingView";
 
 const LOADING_STEPS = [
-  "Reading your resume…",
-  "Comparing to job requirements…",
-  "Building your report…",
+  "Parsing resume structure…",
+  "Matching to job requirements…",
+  "Finding gaps and rewrites…",
+  "Writing your cover letter…",
+  "Preparing your decision report…",
 ] as const;
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -198,11 +200,11 @@ function ScanContent() {
       <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
         <Link
           href="/"
-          className="-mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
+          className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
         >
           ← Back
         </Link>
-        <p className="mt-4 text-zinc-300">
+        <p className="mt-4 text-[var(--text-secondary)]">
           Usage check unavailable. Please try again later.
         </p>
       </main>
@@ -214,7 +216,7 @@ function ScanContent() {
       <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
         <Link
           href="/"
-          className="-mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
+          className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
         >
           ← Back
         </Link>
@@ -263,7 +265,7 @@ function ScanContent() {
     <main className="mx-auto max-w-2xl px-4 pt-10 pb-24 sm:px-6 sm:py-12 sm:pb-12">
       <Link
         href="/"
-        className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
+        className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
       >
         ← Back
       </Link>
@@ -276,10 +278,10 @@ function ScanContent() {
         aria-hidden={loading}
         className={loading ? "absolute h-0 w-0 overflow-hidden opacity-0 pointer-events-none" : undefined}
       >
-        <h1 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
+        <h1 className="mt-4 text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl">
           Check your match before you apply
         </h1>
-        <p className="mt-2 text-zinc-400">
+        <p className="mt-2 text-[var(--text-secondary)]">
           Upload your resume (PDF) and paste the job description. Your data is processed securely and not stored.
         </p>
 
@@ -297,10 +299,10 @@ function ScanContent() {
           value={getOrCreateSessionId()}
         />
         <div>
-          <label className="block text-sm font-medium text-zinc-300">
+          <label className="block text-sm font-medium text-[var(--text-secondary)]">
             Resume (PDF)
           </label>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-[var(--text-faint)]">
             Max 5 MB. We don&apos;t store your file.
           </p>
           <input
@@ -327,20 +329,20 @@ function ScanContent() {
             onDrop={handleDrop}
             className={`focus-ring mt-2 flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-6 transition-colors duration-150 sm:min-h-[140px] ${
               dragActive
-                ? "border-zinc-500 bg-zinc-800/50"
-                : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600 hover:bg-zinc-800/30"
+                ? "border-[var(--accent)]/50 bg-[var(--accent-muted)]"
+                : "border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[var(--border-muted)] hover:bg-[var(--bg-surface-hover)]"
             }`}
           >
             {selectedFileName ? (
               <>
                 <span className="text-lg text-emerald-400">✓</span>
-                <p className="mt-2 text-sm font-medium text-white">{selectedFileName}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">Click or drop a different file</p>
+                <p className="mt-2 text-sm font-medium text-[var(--text-primary)]">{selectedFileName}</p>
+                <p className="mt-0.5 text-xs text-[var(--text-faint)]">Click or drop a different file</p>
               </>
             ) : (
               <>
-                <p className="text-sm font-medium text-zinc-300">Drop your PDF here or click to browse</p>
-                <p className="mt-1 text-xs text-zinc-500">PDF only, max 5 MB</p>
+                <p className="text-sm font-medium text-[var(--text-secondary)]">Drop your PDF here or click to browse</p>
+                <p className="mt-1 text-xs text-[var(--text-faint)]">PDF only, max 5 MB</p>
               </>
             )}
           </div>
@@ -348,11 +350,11 @@ function ScanContent() {
         <div>
           <label
             htmlFor="jd"
-            className="block text-sm font-medium text-zinc-300"
+            className="block text-sm font-medium text-[var(--text-secondary)]"
           >
             Job description
           </label>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-[var(--text-faint)]">
             Paste the full job posting—requirements, responsibilities, and qualifications.
           </p>
           <textarea
@@ -361,7 +363,7 @@ function ScanContent() {
             rows={10}
             required
             placeholder="Paste the full job description here…"
-            className="mt-2 min-h-[140px] w-full resize-y rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-white placeholder-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/50 sm:min-h-[180px]"
+            className="mt-2 min-h-[140px] w-full resize-y rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 text-base text-[var(--text-primary)] placeholder-[var(--text-faint)] focus:border-[var(--accent)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 sm:min-h-[180px]"
             onFocus={() => {
               const textarea = document.getElementById("jd") as HTMLTextAreaElement;
               if (textarea && textarea.value.length === 0) {
@@ -387,7 +389,7 @@ function ScanContent() {
       </form>
       </div>
 
-      <div className="sticky bottom-0 -mx-4 bg-zinc-950 py-4 px-4 sm:static sm:mx-0 sm:bg-transparent sm:p-0">
+      <div className="sticky bottom-0 -mx-4 bg-[var(--bg-deep)] py-4 px-4 sm:static sm:mx-0 sm:bg-transparent sm:p-0">
         <button
           form="scan-form"
           type="submit"
@@ -395,7 +397,7 @@ function ScanContent() {
           aria-busy={loading}
           aria-live={loading ? "polite" : undefined}
           aria-label={loading ? `Scan in progress: ${LOADING_STEPS[loadingStep]}` : "Run scan"}
-          className="focus-ring active:opacity-90 w-full min-w-[7.5rem] rounded-lg bg-white px-6 py-3.5 text-sm font-medium text-zinc-900 transition-[background-color,opacity] duration-200 ease-out hover:bg-zinc-200 disabled:opacity-90 disabled:cursor-not-allowed sm:w-auto"
+          className="focus-ring active:opacity-90 w-full min-w-[7.5rem] rounded-lg bg-[var(--accent)] px-6 py-3.5 text-sm font-medium text-[var(--bg-deep)] transition-[background-color,opacity] duration-200 ease-out hover:bg-[var(--accent-hover)] disabled:opacity-90 disabled:cursor-not-allowed sm:w-auto"
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2.5" aria-hidden>

@@ -4,11 +4,38 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
-import type { ScanAnalysis, GapGroup } from "./ai-analysis-contract";
+import type { ScanAnalysis, GapGroup, ApplyRecommendation, ExperienceRewrite } from "./ai-analysis-contract";
 import {
   normalizeConfidence,
   normalizeMatchScore,
 } from "./ai-analysis-contract";
+
+const APPLY_RECOMMENDATION_VALUES: ApplyRecommendation[] = [
+  "apply_now",
+  "apply_with_edits",
+  "improve_first",
+  "low_priority",
+];
+
+function deriveApplyRecommendation(score: number): ApplyRecommendation {
+  if (score >= 80) return "apply_now";
+  if (score >= 65) return "apply_with_edits";
+  if (score >= 50) return "improve_first";
+  return "low_priority";
+}
+
+function getDefaultApplyNote(recommendation: ApplyRecommendation): string {
+  switch (recommendation) {
+    case "apply_now":
+      return "Submit as-is—your profile aligns well with this role.";
+    case "apply_with_edits":
+      return "Address the critical gaps above where you have experience, then apply.";
+    case "improve_first":
+      return "Meaningful gaps for this role—improve alignment before applying.";
+    case "low_priority":
+      return "Significant mismatch; consider prioritizing roles that fit your profile more closely.";
+  }
+}
 
 // Re-export for type compatibility
 export type { ScanAnalysis } from "./ai-analysis-contract";
@@ -97,8 +124,30 @@ export function validateAndNormalizeAnalysis(
     if (s.length >= 20) matchScoreReasoning = s;
   }
 
+  // applyRecommendation: validate or derive from score
+  let applyRecommendation: ApplyRecommendation;
+  if (
+    typeof obj.applyRecommendation === "string" &&
+    APPLY_RECOMMENDATION_VALUES.includes(obj.applyRecommendation as ApplyRecommendation)
+  ) {
+    applyRecommendation = obj.applyRecommendation as ApplyRecommendation;
+  } else {
+    applyRecommendation = deriveApplyRecommendation(matchScore);
+  }
+
+  // applyRecommendationNote: validate or use default for recommendation
+  let applyRecommendationNote: string;
+  if (typeof obj.applyRecommendationNote === "string") {
+    const s = obj.applyRecommendationNote.trim().slice(0, 200);
+    applyRecommendationNote = s.length >= 20 ? s : getDefaultApplyNote(applyRecommendation);
+  } else {
+    applyRecommendationNote = getDefaultApplyNote(applyRecommendation);
+  }
+
   const result: ScanAnalysis = {
     matchScore,
+    applyRecommendation,
+    applyRecommendationNote,
     missingKeywords,
     missingSkills,
     atsRisks,
@@ -126,7 +175,55 @@ export function validateAndNormalizeAnalysis(
   // Recalibrate critical gaps for high-fit roles (matchScore >= 75)
   const recalibrated = recalibrateCriticalGapsForHighFit(result);
 
+  // Pass through premium content for sessionStorage round-trip
+  if (typeof obj.coverLetter === "string") {
+    const coverLetter = obj.coverLetter.trim();
+    if (coverLetter.length >= 150 && coverLetter.length <= 4000) {
+      recalibrated.coverLetter = coverLetter;
+    }
+  }
+  if (Array.isArray(obj.fullRewrite)) {
+    const fullRewrite: ExperienceRewrite[] = [];
+    for (const item of obj.fullRewrite.slice(0, 25)) {
+      if (!item || typeof item !== "object") continue;
+      const o = item as Record<string, unknown>;
+      const original = typeof o.original === "string" ? o.original.trim().slice(0, 400) : "";
+      const rewritten = typeof o.rewritten === "string" ? o.rewritten.trim().slice(0, 400) : "";
+      const rationale = typeof o.rationale === "string" ? o.rationale.trim().slice(0, 120) : "";
+      if (original.length >= 10 && rewritten.length >= 20 && rationale.length >= 10) {
+        fullRewrite.push({ original, rewritten, rationale });
+      }
+    }
+    if (fullRewrite.length > 0) recalibrated.fullRewrite = fullRewrite;
+  }
+
   return recalibrated;
+}
+
+/**
+ * Validate premium content (cover letter + full rewrite) from raw object.
+ * Used when merging pipeline output in premium-generate.
+ */
+export function validatePremiumContent(
+  obj: Record<string, unknown>
+): { coverLetter: string; fullRewrite: ExperienceRewrite[] } | null {
+  const coverLetter =
+    typeof obj.coverLetter === "string" ? obj.coverLetter.trim() : "";
+  if (coverLetter.length < 150 || coverLetter.length > 4000) return null;
+
+  if (!Array.isArray(obj.fullRewrite)) return null;
+  const fullRewrite: ExperienceRewrite[] = [];
+  for (const item of obj.fullRewrite.slice(0, 25)) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const original = typeof o.original === "string" ? o.original.trim().slice(0, 400) : "";
+    const rewritten = typeof o.rewritten === "string" ? o.rewritten.trim().slice(0, 400) : "";
+    const rationale = typeof o.rationale === "string" ? o.rationale.trim().slice(0, 120) : "";
+    if (original.length >= 10 && rewritten.length >= 20 && rationale.length >= 10) {
+      fullRewrite.push({ original, rewritten, rationale });
+    }
+  }
+  return { coverLetter, fullRewrite };
 }
 
 /**

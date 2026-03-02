@@ -11,7 +11,7 @@
 // ============================================================================
 
 /**
- * Strict JSON Schema for GPT-5-mini structured output.
+ * Strict JSON Schema for gpt-4o-mini structured output.
  * Used with OpenAI's response_format: { type: "json_schema", json_schema: {...} }
  */
 export const SCAN_ANALYSIS_JSON_SCHEMA = {
@@ -171,10 +171,25 @@ export const SCAN_ANALYSIS_JSON_SCHEMA = {
           description:
             "Required 1-2 sentence explanation of why the match score was assigned. E.g. 'Strong keyword overlap in React and TypeScript; experience level aligns; minor ATS formatting risks.'",
         },
+        applyRecommendation: {
+          type: "string",
+          enum: ["apply_now", "apply_with_edits", "improve_first", "low_priority"],
+          description:
+            "Practical apply verdict: apply_now = strong match, submit as-is; apply_with_edits = good match, 1-2 targeted changes first; improve_first = partial match, meaningful work needed; low_priority = weak match, significant mismatch. Must align with matchScore and gap profile.",
+        },
+        applyRecommendationNote: {
+          type: "string",
+          minLength: 20,
+          maxLength: 200,
+          description:
+            "One-sentence rationale for applyRecommendation. E.g. 'Submit as-is—your experience and keywords align well with the role.' or 'Address the two critical gaps above, then apply.' Honest and grounded.",
+        },
       },
       required: [
         "matchScore",
         "matchScoreReasoning",
+        "applyRecommendation",
+        "applyRecommendationNote",
         "missingKeywords",
         "missingSkills",
         "criticalMissingKeywords",
@@ -200,6 +215,19 @@ export interface GapGroup {
   items: string[];
 }
 
+/** Premium: single experience bullet rewrite with rationale. */
+export interface ExperienceRewrite {
+  original: string;
+  rewritten: string;
+  rationale: string;
+}
+
+export type ApplyRecommendation =
+  | "apply_now"
+  | "apply_with_edits"
+  | "improve_first"
+  | "low_priority";
+
 export interface ScanAnalysis {
   matchScore: number; // 0-100
   missingKeywords: string[];
@@ -214,6 +242,12 @@ export interface ScanAnalysis {
   extractionQuality: "high" | "medium" | "low";
   matchScoreReasoning?: string; // optional 20-200 chars
   gapGroups?: GapGroup[]; // Optional: thematic grouping of gaps
+  applyRecommendation: ApplyRecommendation;
+  applyRecommendationNote: string; // 20-200 chars
+  /** Premium: tailored cover letter for this role. */
+  coverLetter?: string;
+  /** Premium: all experience bullets rewritten for this role. */
+  fullRewrite?: ExperienceRewrite[];
 }
 
 // ============================================================================
@@ -221,7 +255,7 @@ export interface ScanAnalysis {
 // ============================================================================
 
 /**
- * System prompt for GPT-5-mini (default model).
+ * System prompt for gpt-4o-mini (default model).
  * Grounded in facts, anti-fabrication, production-ready.
  */
 export const ANALYSIS_SYSTEM_PROMPT = `You are a resume analysis expert. Analyze resumes against job descriptions and output structured JSON.
@@ -235,6 +269,8 @@ CRITICAL RULES:
 
 OUTPUT REQUIREMENTS:
 - matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%). Always include matchScoreReasoning (20-200 chars) with a brief justification for the score.
+- applyRecommendation: One of apply_now | apply_with_edits | improve_first | low_priority. Must align with matchScore and gap profile. apply_now = strong match, submit as-is; apply_with_edits = good match, 1-2 targeted changes first; improve_first = partial match, meaningful work needed; low_priority = weak match, significant mismatch.
+- applyRecommendationNote: One-sentence honest rationale for the apply verdict (20-200 chars). E.g. "Submit as-is—your experience and keywords align well." or "Address the two critical gaps above, then apply."
 
 GAP PRIORITIZATION:
 - criticalMissingKeywords (OPTIONAL): Output the most critical missing keywords that materially threaten fit—explicitly mandatory in JD, core to day-one role, or repeatedly stated as essential. For matchScore >= 75 (strong fit), use very sparingly: 0-2 total items. Do NOT list as critical: optional tools, mild wording gaps, nice-to-have technologies, or adjacent skills not central to role fit. Secondary/nice-to-have deficiencies belong in missingKeywords only.
@@ -258,7 +294,7 @@ QUALITY METRICS:
 - extractionQuality: Assess PDF text extraction quality. "high" = clean structured text. "medium" = some formatting issues. "low" = significant parsing problems.
 
 CONSISTENCY:
-- Ensure the report is internally aligned: (a) If matchScore is high, tailoredSummary must emphasize alignment and strengths; do not list as a critical gap an area the summary describes as a strength. (b) If a skill/area is partially present in the resume, prefer listing it in missingKeywords/missingSkills as secondary, or omit from critical; avoid calling it critical while also stating the candidate is strong in that area. (c) matchScoreReasoning, tailoredSummary, and gap lists must tell one coherent story (strong fit → few critical gaps and summary that leads with alignment; weak fit → honest gaps and summary).
+- Ensure the report is internally aligned: (a) If matchScore is high, tailoredSummary must emphasize alignment and strengths; do not list as a critical gap an area the summary describes as a strength. (b) If a skill/area is partially present in the resume, prefer listing it in missingKeywords/missingSkills as secondary, or omit from critical; avoid calling it critical while also stating the candidate is strong in that area. (c) matchScoreReasoning, tailoredSummary, applyRecommendation, applyRecommendationNote, and gap lists must tell one coherent story (strong fit → apply_now or apply_with_edits, few critical gaps; weak fit → improve_first or low_priority, honest gaps).
 
 REPORT QUALITY:
 Output should feel strategic and human-useful, not a generic keyword checklist. Prioritize what matters most. Focus on actionable insights that help the candidate understand fit and improve their resume. For strong-fit roles, the reader should feel "this role fits me well" and "these are useful refinements," not punished for an 85% score.
@@ -291,7 +327,7 @@ Output strict JSON matching the schema. Base all analysis on the provided texts 
 // ============================================================================
 
 /**
- * Conditions that trigger fallback to GPT-5 (premium model).
+ * Conditions that trigger fallback to gpt-4o (premium/fallback model).
  */
 export interface FallbackConditions {
   confidenceThreshold: number; // < 0.7 triggers fallback
@@ -310,7 +346,7 @@ export const DEFAULT_FALLBACK_CONDITIONS: FallbackConditions = {
 };
 
 /**
- * Determine if fallback to GPT-5 is needed.
+ * Determine if fallback to gpt-4o is needed.
  */
 export function shouldUseFallback(
   result: ScanAnalysis | null,
@@ -343,7 +379,7 @@ export function shouldUseFallback(
 }
 
 /**
- * Fallback prompt for GPT-5 (more capable model).
+ * Fallback prompt for gpt-4o (more capable model).
  * Same schema, but with additional instructions for handling edge cases.
  */
 export const FALLBACK_SYSTEM_PROMPT = `You are a resume analysis expert. Analyze resumes against job descriptions and output structured JSON.
@@ -357,6 +393,8 @@ CRITICAL RULES:
 
 OUTPUT REQUIREMENTS:
 - matchScore (0-100): Weighted score based on keyword overlap (40%), skill alignment (30%), experience relevance (20%), ATS compatibility (10%). Always include matchScoreReasoning (20-200 chars) with a brief justification for the score.
+- applyRecommendation: One of apply_now | apply_with_edits | improve_first | low_priority. Must align with matchScore and gap profile. apply_now = strong match, submit as-is; apply_with_edits = good match, 1-2 targeted changes first; improve_first = partial match, meaningful work needed; low_priority = weak match, significant mismatch.
+- applyRecommendationNote: One-sentence honest rationale for the apply verdict (20-200 chars). E.g. "Submit as-is—your experience and keywords align well." or "Address the two critical gaps above, then apply."
 
 GAP PRIORITIZATION:
 - criticalMissingKeywords (OPTIONAL): Output the most critical missing keywords that materially threaten fit—explicitly mandatory in JD, core to day-one role, or repeatedly stated as essential. For matchScore >= 75 (strong fit), use very sparingly: 0-2 total items. Do NOT list as critical: optional tools, mild wording gaps, nice-to-have technologies, or adjacent skills not central to role fit. Secondary/nice-to-have deficiencies belong in missingKeywords only.
@@ -380,7 +418,7 @@ QUALITY METRICS:
 - extractionQuality: Assess PDF text extraction quality. "high" = clean structured text. "medium" = some formatting issues. "low" = significant parsing problems.
 
 CONSISTENCY:
-- Ensure the report is internally aligned: (a) If matchScore is high, tailoredSummary must emphasize alignment and strengths; do not list as a critical gap an area the summary describes as a strength. (b) If a skill/area is partially present in the resume, prefer listing it in missingKeywords/missingSkills as secondary, or omit from critical; avoid calling it critical while also stating the candidate is strong in that area. (c) matchScoreReasoning, tailoredSummary, and gap lists must tell one coherent story (strong fit → few critical gaps and summary that leads with alignment; weak fit → honest gaps and summary).
+- Ensure the report is internally aligned: (a) If matchScore is high, tailoredSummary must emphasize alignment and strengths; do not list as a critical gap an area the summary describes as a strength. (b) If a skill/area is partially present in the resume, prefer listing it in missingKeywords/missingSkills as secondary, or omit from critical; avoid calling it critical while also stating the candidate is strong in that area. (c) matchScoreReasoning, tailoredSummary, applyRecommendation, applyRecommendationNote, and gap lists must tell one coherent story (strong fit → apply_now or apply_with_edits, few critical gaps; weak fit → improve_first or low_priority, honest gaps).
 
 REPORT QUALITY:
 Output should feel strategic and human-useful, not a generic keyword checklist. Prioritize what matters most. Focus on actionable insights that help the candidate understand fit and improve their resume. For strong-fit roles, the reader should feel "this role fits me well" and "these are useful refinements," not punished for an 85% score.
@@ -391,7 +429,7 @@ Report density must match fit level. Strong-fit reports (matchScore >= 75) shoul
 TONE: Professional, credible, practical. Avoid hype or guarantees.
 
 FALLBACK MODE:
-You are using the premium model (GPT-5) because the default model encountered issues.
+You are using the premium model (gpt-4o) because the default model encountered issues.
 - Handle ambiguous or poorly extracted text more carefully.
 - If resume text is garbled or incomplete, mark confidence low and extractionQuality as "low".
 - Be extra cautious about not fabricating content when text is unclear.
@@ -445,6 +483,9 @@ export function normalizeMatchScore(value: unknown): number {
  */
 export const EXAMPLE_OUTPUT_HIGH_QUALITY: ScanAnalysis = {
   matchScore: 85,
+  applyRecommendation: "apply_now",
+  applyRecommendationNote:
+    "Submit as-is—your experience and keywords align well with the role; minor refinements are optional.",
   missingKeywords: ["GraphQL", "Docker", "AWS Lambda"],
   missingSkills: ["Kubernetes orchestration", "Event-driven architecture"],
   criticalMissingKeywords: [],
@@ -476,6 +517,9 @@ export const EXAMPLE_OUTPUT_HIGH_QUALITY: ScanAnalysis = {
  */
 export const EXAMPLE_OUTPUT_MEDIUM_QUALITY: ScanAnalysis = {
   matchScore: 62,
+  applyRecommendation: "apply_with_edits",
+  applyRecommendationNote:
+    "Address the critical gaps (TypeScript, CI/CD, cloud) where you have experience, then apply.",
   missingKeywords: ["REST API", "Agile"],
   missingSkills: ["Test-driven development"],
   criticalMissingKeywords: ["TypeScript", "CI/CD", "Microservices"],
@@ -510,6 +554,9 @@ export const EXAMPLE_OUTPUT_MEDIUM_QUALITY: ScanAnalysis = {
  */
 export const EXAMPLE_OUTPUT_LOW_QUALITY: ScanAnalysis = {
   matchScore: 35,
+  applyRecommendation: "improve_first",
+  applyRecommendationNote:
+    "The role requires React, Node.js, and cloud experience not clearly evidenced—build or highlight these before applying.",
   missingKeywords: ["GraphQL"],
   missingSkills: ["API design"],
   criticalMissingKeywords: [
@@ -627,12 +674,12 @@ export const EDGE_CASES = {
 
   /**
    * JSON schema validation failure
-   * Handling: Retry with default model, then fallback to GPT-5
+   * Handling: Retry with default model, then fallback to gpt-4o
    */
   SCHEMA_VIOLATION: {
     condition: "Model output does not match strict JSON schema",
     handling:
-      "Retry up to maxRetries (2), then fallback to GPT-5, if still fails return error",
+      "Retry up to maxRetries (2), then fallback to gpt-4o, if still fails return error",
   },
 
   /**

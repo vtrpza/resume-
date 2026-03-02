@@ -2,11 +2,14 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { motion } from "motion/react";
 import { setRoute } from "@/lib/sentry";
 import { capture, captureResultViewed } from "@/lib/analytics";
-import type { ScanAnalysis } from "@/lib/ai-analysis-contract";
+import type { ScanAnalysis, ApplyRecommendation } from "@/lib/ai-analysis-contract";
 import { validateAndNormalizeAnalysis } from "@/lib/ai-analysis-validation";
 import { PageLoadingView } from "@/components/PageLoadingView";
+import { AnimatedScore } from "@/components/AnimatedScore";
+import { CopyButton } from "@/components/CopyButton";
 
 export default function ResultPage() {
   const [analysis, setAnalysis] = useState<ScanAnalysis | null | undefined>(undefined);
@@ -48,13 +51,13 @@ export default function ResultPage() {
   if (analysis === null) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
-        <p className="text-zinc-400">
+        <p className="text-[var(--text-secondary)]">
           Your report isn&apos;t here—it may have been cleared. Run a new scan
           to get your analysis.
         </p>
         <Link
           href="/scan"
-          className="focus-ring active:opacity-90 mt-6 inline-block rounded-lg bg-white px-6 py-3.5 text-center text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
+          className="focus-ring active:opacity-90 mt-6 inline-block rounded-lg bg-[var(--accent)] px-6 py-3.5 text-center text-sm font-medium text-[var(--bg-deep)] transition hover:bg-[var(--accent-hover)]"
         >
           Run a new scan
         </Link>
@@ -63,49 +66,61 @@ export default function ResultPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
+    <main className="result-page mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
       <Link
         href="/"
-        className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-zinc-500 hover:text-zinc-300"
+        className="focus-ring -mx-2 inline-block min-h-[44px] py-2 pl-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
       >
         ← Home
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold text-white">Your scan results</h1>
-      <p className="mt-2 text-sm text-zinc-400">
-        Review your fit and refinements below.
+      <h1 className="mt-4 text-2xl font-semibold text-[var(--text-primary)]">Match Report</h1>
+      <p className="mt-2 text-sm text-[var(--text-secondary)]">
+        Your fit for this role and what to do next.
       </p>
-      <div className="mt-4">
-        <ExportReportButton analysis={analysis} />
-      </div>
 
       <AnalysisView data={analysis} />
 
+      <div className="mt-10 flex flex-wrap items-center gap-3">
+        <ExportReportButton analysis={analysis} />
+      </div>
+
       {/* Upsell: next scan = $2 */}
-      <div className="mt-10 rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6">
-        <p className="text-sm font-medium text-zinc-300">
-          Your next application deserves a check too
-        </p>
-        <p className="mt-1 text-xs text-zinc-500">
-          Every job description shifts the match. Run another scan for $2—same
-          full report, one-time. No subscription.
-        </p>
-        <p className="mt-3 text-xs text-zinc-500">
-          Don&apos;t send the next one blind.
-        </p>
-        <Link
-          href="/scan"
-          className="focus-ring active:opacity-90 mt-4 inline-block min-h-[44px] rounded-lg bg-white px-6 py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200"
-        >
-          Run another scan — $2
-        </Link>
+      <div className="mt-10 border-t border-[var(--border-subtle)] pt-10">
+        <div className="rounded-xl card-surface border border-[var(--border-subtle)] p-5 sm:p-6 ring-1 ring-[var(--accent)]/20">
+          <p className="text-sm font-medium text-[var(--text-primary)]">
+            Run the next role before you apply
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+            Every job description shifts the match. Same full report—cover letter, full rewrite, gaps, and bullets—for $2. One-time, no subscription.
+          </p>
+          <p className="mt-3 text-xs text-[var(--text-faint)]">
+            Don&apos;t send the next one blind.
+          </p>
+          <Link
+            href="/scan"
+            className="focus-ring active:opacity-90 mt-4 inline-flex min-h-[48px] items-center justify-center rounded-lg bg-[var(--accent)] px-7 py-3.5 text-base font-semibold text-[var(--bg-deep)] transition hover:bg-[var(--accent-hover)]"
+          >
+            Run another scan — $2
+          </Link>
+        </div>
       </div>
     </main>
   );
 }
 
 function buildReportMarkdown(analysis: ScanAnalysis): string {
+  const verdictLabels: Record<ApplyRecommendation, string> = {
+    apply_now: "Strong fit",
+    apply_with_edits: "Good fit — minor edits needed",
+    improve_first: "Partial fit — improve first",
+    low_priority: "Low priority",
+  };
   const lines: string[] = [
     "# Resume Match Report",
+    "",
+    `## ${verdictLabels[analysis.applyRecommendation]}`,
+    "",
+    analysis.applyRecommendationNote,
     "",
     `## Match score: ${analysis.matchScore}%`,
     "",
@@ -191,6 +206,18 @@ function buildReportMarkdown(analysis: ScanAnalysis): string {
     analysis.weakBullets.forEach((weak, i) => {
       lines.push("**Original:**", weak, "", "**Suggested:**", analysis.rewrittenBullets[i] ?? "", "");
     });
+    lines.push("");
+  }
+
+  if (analysis.coverLetter) {
+    lines.push("## Cover letter", "", analysis.coverLetter, "");
+  }
+
+  if (analysis.fullRewrite && analysis.fullRewrite.length > 0) {
+    lines.push("## Full experience rewrite", "");
+    analysis.fullRewrite.forEach((item) => {
+      lines.push("**Original:**", item.original, "", "**Rewritten:**", item.rewritten, "", `_${item.rationale}_`, "");
+    });
   }
 
   return lines.join("\n");
@@ -212,7 +239,7 @@ function ExportReportButton({ analysis }: { analysis: ScanAnalysis }) {
     <button
       type="button"
       onClick={handleExport}
-      className="focus-ring active:opacity-90 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700"
+      className="focus-ring active:opacity-90 rounded-lg border-2 border-[var(--accent)]/50 bg-[var(--accent-muted)] px-5 py-2.5 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/20 hover:border-[var(--accent)]"
     >
       Export report (MD)
     </button>
@@ -220,28 +247,73 @@ function ExportReportButton({ analysis }: { analysis: ScanAnalysis }) {
 }
 
 const cardClass =
-  "rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-6";
+  "rounded-xl card-surface p-5 sm:p-6";
 
 const scoreCardClass =
-  "rounded-xl border-2 border-zinc-700 bg-zinc-900/80 p-6 sm:p-8";
+  "rounded-xl card-surface border-2 border-[var(--border-subtle)] p-6 sm:p-8";
 
-function scoreBand(score: number): { label: string; ring: string } {
-  if (score >= 80) return { label: "Strong match. Your resume aligns well with this role.", ring: "ring-emerald-500/30 bg-emerald-950/20" };
-  if (score >= 60) return { label: "Good match. Consider adding missing keywords to improve your score.", ring: "ring-amber-500/30 bg-amber-950/20" };
-  return { label: "Room for improvement. Review missing keywords and skills below.", ring: "ring-red-500/20 bg-red-950/10" };
+function verdictConfig(
+  rec: ApplyRecommendation
+): { label: string; ring: string; badge: string } {
+  switch (rec) {
+    case "apply_now":
+      return {
+        label: "Strong fit",
+        ring: "ring-emerald-500/30 bg-emerald-950/20",
+        badge: "bg-emerald-950/50 border-emerald-700/60 text-emerald-200",
+      };
+    case "apply_with_edits":
+      return {
+        label: "Good fit — minor edits needed",
+        ring: "ring-emerald-500/20 bg-emerald-950/10",
+        badge: "bg-teal-950/50 border-teal-700/60 text-teal-200",
+      };
+    case "improve_first":
+      return {
+        label: "Partial fit — improve first",
+        ring: "ring-amber-500/30 bg-amber-950/20",
+        badge: "bg-amber-950/50 border-amber-700/60 text-amber-200",
+      };
+    case "low_priority":
+      return {
+        label: "Low priority",
+        ring: "ring-red-500/20 bg-red-950/10",
+        badge: "bg-red-950/50 border-red-700/60 text-red-200",
+      };
+  }
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+    <p className="font-mono mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-faint)]">
       {children}
     </p>
   );
 }
 
+/** Derive a short improvement label for a bullet rewrite (heuristic). */
+function bulletImprovementLabel(
+  original: string,
+  rewritten: string,
+  criticalTerms: string[]
+): string {
+  const o = original.toLowerCase().trim();
+  const r = rewritten.toLowerCase().trim();
+  const oFirst = o.split(/\s+/)[0]?.replace(/\W/g, "") ?? "";
+  const rFirst = r.split(/\s+/)[0]?.replace(/\W/g, "") ?? "";
+  if (r.length < o.length * 0.9) return "Tighter";
+  if (oFirst && rFirst && oFirst !== rFirst) return "Stronger opening";
+  const rWords = new Set(r.split(/\s+/));
+  const hasCritical = criticalTerms.some((t) => rWords.has(t.toLowerCase()));
+  if (hasCritical) return "Role-aligned";
+  return "More direct";
+}
+
 function AnalysisView({ data }: { data: ScanAnalysis }) {
   const [copied, setCopied] = useState(false);
   const [copiedBulletIndex, setCopiedBulletIndex] = useState<number | null>(null);
+  const [copiedCoverLetter, setCopiedCoverLetter] = useState(false);
+  const [copiedFullRewrite, setCopiedFullRewrite] = useState(false);
   const summary = data.tailoredSummary;
 
   const handleCopySummary = useCallback(async () => {
@@ -268,6 +340,32 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
     }
   }, []);
 
+  const handleCopyCoverLetter = useCallback(async () => {
+    if (!data.coverLetter) return;
+    try {
+      await navigator.clipboard.writeText(data.coverLetter);
+      setCopiedCoverLetter(true);
+      capture("cover_letter_copied", {});
+      setTimeout(() => setCopiedCoverLetter(false), 2000);
+    } catch {
+      // no-op
+    }
+  }, [data.coverLetter]);
+
+  const fullRewriteText =
+    data.fullRewrite?.map((r) => r.rewritten).join("\n\n") ?? "";
+  const handleCopyFullRewrite = useCallback(async () => {
+    if (!fullRewriteText) return;
+    try {
+      await navigator.clipboard.writeText(fullRewriteText);
+      setCopiedFullRewrite(true);
+      capture("full_rewrite_copied", { count: data.fullRewrite?.length ?? 0 });
+      setTimeout(() => setCopiedFullRewrite(false), 2000);
+    } catch {
+      // no-op
+    }
+  }, [fullRewriteText, data.fullRewrite?.length]);
+
   const weakBullets = data.weakBullets;
   const rewrittenBullets = data.rewrittenBullets;
   const canPair =
@@ -278,68 +376,88 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
   const showLowQualityNotice = data.extractionQuality === "low";
 
   const score = data.matchScore;
-  const band = scoreBand(score);
+  const verdict = verdictConfig(data.applyRecommendation);
 
   return (
     <div className="mt-8 space-y-12">
       {showLowQualityNotice && (
-        <p className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
-          We had trouble reading some parts of your PDF; results may be less
-          accurate.
-        </p>
+        <div className="animate-fade-in-up" style={{ animationDelay: "0ms" }}>
+          <p className="rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+            We had trouble reading some parts of your PDF; results may be less
+            accurate.
+          </p>
+        </div>
       )}
 
-      {/* Match score hero */}
-      <section className={`${scoreCardClass} ring-2 ${band.ring}`}>
-          <h2 className="text-sm font-medium text-zinc-500 mb-4">Match score</h2>
-          <div className="flex flex-col items-center py-4 sm:py-6">
-            <p className="text-5xl font-bold tracking-tight text-white sm:text-6xl">
-              {score}%
+      {/* Verdict + score hero */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05 }}
+      >
+      <section className={`${scoreCardClass} ring-2 ${verdict.ring}`}>
+        <div className="flex flex-col items-center py-4 sm:py-6">
+          <span
+            className={`inline-flex rounded-lg border px-3 py-1.5 text-sm font-semibold ${verdict.badge}`}
+          >
+            {verdict.label}
+          </span>
+          <p className="mt-4 text-5xl font-bold tracking-tight text-[var(--text-primary)] sm:text-6xl">
+            <AnimatedScore value={score} />
+          </p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">
+            Match score — overall alignment with job requirements
+          </p>
+          <p className="mt-4 text-sm text-[var(--text-secondary)] text-center max-w-md">
+            {data.applyRecommendationNote}
+          </p>
+          <p className="mt-2 text-xs text-[var(--text-faint)] text-center max-w-md">
+            {data.applyRecommendation === "apply_now" && "Use the fit summary below in your application or cover letter."}
+            {data.applyRecommendation === "apply_with_edits" && "Address the critical gaps above where you have experience, then apply."}
+            {data.applyRecommendation === "improve_first" && "Focus on the critical gaps and bullet improvements before applying."}
+            {data.applyRecommendation === "low_priority" && "Consider prioritizing roles that align more closely with your experience."}
+          </p>
+          {data.matchScoreReasoning && (
+            <p className="mt-3 text-xs text-[var(--text-faint)] text-center max-w-md">
+              {data.matchScoreReasoning}
             </p>
-            <p className="mt-2 text-sm text-zinc-400">
-              Overall alignment with job requirements
-            </p>
-            <p className="mt-4 text-sm text-zinc-300 text-center max-w-sm">
-              {band.label}
-            </p>
-            {data.matchScoreReasoning && (
-              <p className="mt-3 text-xs text-zinc-500 text-center max-w-md">
-                {data.matchScoreReasoning}
-              </p>
-            )}
-          </div>
-        </section>
+          )}
+        </div>
+      </section>
+      </motion.div>
 
       {/* Summary - moved up */}
       {summary && (
-        <div className="space-y-5">
+        <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "150ms" }}>
           <SectionLabel>Summary</SectionLabel>
           <section className={cardClass}>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-medium text-zinc-400">
+                <h2 className="text-sm font-medium text-[var(--text-muted)]">
                   Fit summary
                 </h2>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-[var(--text-faint)]">
                   Job-specific summary you can drop into applications or cover letters.
                 </p>
               </div>
-              <button
-                type="button"
+              <CopyButton
                 onClick={handleCopySummary}
-                className="focus-ring active:opacity-90 shrink-0 rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-700"
-              >
-                {copied ? "✓ Copied" : "Copy summary"}
-              </button>
+                copied={copied}
+                label="Copy summary"
+                copiedLabel="✓ Copied"
+              />
             </div>
-            <p className="mt-4 text-zinc-300 leading-relaxed">{summary}</p>
+            <p className="mt-4 text-[var(--text-secondary)] leading-relaxed">{summary}</p>
           </section>
         </div>
       )}
 
       {/* Gaps to close */}
-      <div className="space-y-5">
+      <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "200ms" }}>
         <SectionLabel>Where to improve</SectionLabel>
+        <p className="mb-1 text-xs text-[var(--text-faint)]">
+          Some of these may reflect experience you have but haven&apos;t stated explicitly—only add what genuinely applies.
+        </p>
         {(() => {
           // Check if gapGroups is present and non-empty
           const hasGapGroups = data.gapGroups && data.gapGroups.length > 0;
@@ -394,7 +512,7 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
           return (
             <>
               {hasCriticalGaps && (
-                <section className={cardClass}>
+                <section className={`${cardClass} border-l-4 border-red-800/60`}>
                   <h2 className="text-sm font-medium text-zinc-400">
                     Critical gaps
                   </h2>
@@ -436,7 +554,7 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                         Other missing keywords
                       </h2>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Terms from the job description not in your resume. Adding them where they fit can improve ATS compatibility.
+                        Lower priority than critical gaps. Terms from the job description not in your resume—add where they fit.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {otherKeywords.map((k, i) => (
@@ -453,7 +571,7 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                         Other missing skills
                       </h2>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Skills the job requires that aren&apos;t clearly present. Only add skills you actually have.
+                        Lower priority. Skills the job requires that aren&apos;t clearly present—only add skills you actually have.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {otherSkills.map((s, i) => (
@@ -511,10 +629,11 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
       </div>
 
       {/* Risks to fix */}
-      <div className="space-y-5">
+      <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "300ms" }}>
         <SectionLabel>Format & parsing</SectionLabel>
-        <section className={cardClass}>
-          <h2 className="text-sm font-medium text-zinc-400">
+        <section className={`${cardClass} border-l-4 border-amber-700/50`}>
+          <h2 className="text-sm font-medium text-zinc-400 flex items-center gap-2">
+            <span className="text-amber-400/90" aria-hidden>⚠</span>
             ATS risk flags
           </h2>
           <p className="mt-1 text-xs text-zinc-500">
@@ -536,10 +655,10 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
 
       {/* Improvements */}
       {(canPair || weakBullets.length > 0 || rewrittenBullets.length > 0) ? (
-        <div className="space-y-5">
+        <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "400ms" }}>
           <SectionLabel>Improvements</SectionLabel>
           {canPair ? (
-            <section className={cardClass}>
+            <section className={`${cardClass} border-l-4 border-emerald-800/50`}>
               <h2 className="text-sm font-medium text-zinc-400">
                 Bullet improvements
               </h2>
@@ -547,23 +666,36 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
                 Stronger, more impactful versions using only what&apos;s in your resume—no invented metrics.
               </p>
               <ul className="mt-4 space-y-6">
-                {weakBullets.map((weak, i) => (
-                  <li key={i} className="space-y-2 border-t border-zinc-800 pt-5 first:border-t-0 first:pt-0">
-                    <p className="text-xs font-medium text-zinc-500">Original</p>
-                    <p className="text-zinc-400 line-through">{weak}</p>
-                    <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
-                      <p className="text-xs font-medium text-zinc-500">Suggested</p>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyBullet(rewrittenBullets[i], i)}
-                        className="focus-ring active:opacity-90 shrink-0 rounded border border-zinc-600 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-zinc-700"
-                      >
-                        {copiedBulletIndex === i ? "✓ Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <p className="text-zinc-300">{rewrittenBullets[i]}</p>
-                  </li>
-                ))}
+                {weakBullets.map((weak, i) => {
+                  const rewritten = rewrittenBullets[i] ?? "";
+                  const criticalTerms = [
+                    ...(data.criticalMissingKeywords ?? []),
+                    ...(data.missingKeywords.slice(0, 5)),
+                  ];
+                  const improvementTag = bulletImprovementLabel(weak, rewritten, criticalTerms);
+                  return (
+                    <li key={i} className="space-y-2 border-t border-[var(--border-subtle)] pt-5 first:border-t-0 first:pt-0">
+                      <p className="text-xs font-medium text-[var(--text-faint)]">Original</p>
+                      <p className="text-[var(--text-muted)] line-through">{weak}</p>
+                      <div className="mt-3 flex flex-wrap items-start justify-between gap-2">
+                        <p className="text-xs font-medium text-[var(--text-faint)]">Stronger version</p>
+                        <CopyButton
+                          onClick={() => handleCopyBullet(rewritten, i)}
+                          copied={copiedBulletIndex === i}
+                          label="Copy"
+                          copiedLabel="✓ Copied"
+                          size="sm"
+                        />
+                      </div>
+                      <div className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-3 py-2.5">
+                        <p className="text-[var(--text-secondary)]">{rewritten}</p>
+                        <span className="mt-2 inline-block text-xs font-medium text-emerald-400/90">
+                          {improvementTag}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ) : (
@@ -593,63 +725,133 @@ function AnalysisView({ data }: { data: ScanAnalysis }) {
         </div>
       ) : null}
 
+      {/* Cover letter — premium */}
+      {data.coverLetter && (
+        <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "450ms" }}>
+          <SectionLabel>Cover letter</SectionLabel>
+          <section className={`${cardClass} border-l-4 border-sky-800/50 relative overflow-hidden`}>
+            <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-sky-600/60 to-sky-400/40" aria-hidden />
+            <div className="flex flex-wrap items-start justify-between gap-4 pt-1">
+              <div className="min-w-0 flex-1">
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-sky-400/90">Premium</span>
+                <h2 className="mt-1 text-sm font-medium text-[var(--text-muted)]">
+                  Tailored to this role
+                </h2>
+                <p className="mt-1 text-xs text-[var(--text-faint)]">
+                  Edit and personalize before sending.
+                </p>
+              </div>
+              <CopyButton
+                onClick={handleCopyCoverLetter}
+                copied={copiedCoverLetter}
+                label="Copy cover letter"
+                copiedLabel="✓ Copied"
+              />
+            </div>
+            <div className="mt-4 whitespace-pre-wrap text-[var(--text-secondary)] leading-relaxed">
+              {data.coverLetter}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Full experience rewrite — premium */}
+      {data.fullRewrite && data.fullRewrite.length > 0 && (
+        <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "460ms" }}>
+          <SectionLabel>Full experience rewrite</SectionLabel>
+          <section className={`${cardClass} border-l-4 border-violet-800/50 relative overflow-hidden`}>
+            <div className="absolute left-0 right-0 top-0 h-1 bg-gradient-to-r from-violet-600/60 to-violet-400/40" aria-hidden />
+            <div className="flex flex-wrap items-start justify-between gap-4 pt-1">
+              <div className="min-w-0 flex-1">
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-violet-400/90">Premium</span>
+                <h2 className="mt-1 text-sm font-medium text-[var(--text-muted)]">
+                  Every bullet rewritten for this role
+                </h2>
+                <p className="mt-1 text-xs text-[var(--text-faint)]">
+                  Only use what applies—no invented experience.
+                </p>
+              </div>
+              <CopyButton
+                onClick={handleCopyFullRewrite}
+                copied={copiedFullRewrite}
+                label="Copy all"
+                copiedLabel="✓ Copied"
+              />
+            </div>
+            <ul className="mt-4 space-y-6">
+              {data.fullRewrite.map((item, i) => (
+                <li key={i} className="space-y-2 border-t border-[var(--border-subtle)] pt-5 first:border-t-0 first:pt-0">
+                  <p className="text-xs font-medium text-[var(--text-faint)]">Original</p>
+                  <p className="text-[var(--text-muted)] line-through">{item.original}</p>
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-[var(--text-faint)]">Rewritten</p>
+                    <div className="rounded-lg border border-violet-900/50 bg-violet-950/20 px-3 py-2.5 mt-1">
+                      <p className="text-[var(--text-secondary)]">{item.rewritten}</p>
+                      <span className="mt-2 inline-block text-xs font-medium text-violet-400/90">
+                        {item.rationale}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      )}
+
       {/* Next steps */}
-      <div className="space-y-5">
+      <div className="space-y-5 animate-fade-in-up" style={{ animationDelay: "500ms" }}>
         <SectionLabel>Next steps</SectionLabel>
         <section className={cardClass}>
-          <h2 className="text-sm font-medium text-zinc-400">
+          <h2 className="text-sm font-medium text-[var(--text-muted)]">
             What to do next
           </h2>
-          <p className="mt-1 text-xs text-zinc-500 mb-4">
-            Prioritize these actions before you apply.
+          <p className="mt-2 text-sm font-medium text-[var(--text-primary)]">
+            Based on your match score and gap profile:{" "}
+            {data.applyRecommendation === "apply_now" && "Apply now."}
+            {data.applyRecommendation === "apply_with_edits" && "Apply after minor edits."}
+            {data.applyRecommendation === "improve_first" && "Improve before applying."}
+            {data.applyRecommendation === "low_priority" && "Low-priority target compared to stronger matches."}
           </p>
-          <ul className="space-y-3 text-sm text-zinc-300">
+          <ul className="mt-4 space-y-3 text-sm text-[var(--text-secondary)]">
             {data.atsRisks.length > 0 && (
               <li className="flex items-start gap-2">
-                <span className="text-zinc-500 mt-0.5">1.</span>
-                <span>Fix format & parsing issues first—formatting problems can prevent your resume from being parsed correctly.</span>
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
+                <span>Fix format & parsing issues first so ATS can read your resume correctly.</span>
               </li>
             )}
-            {(() => {
-              const hasGapGroups = data.gapGroups && data.gapGroups.length > 0;
-              const hasCriticalKeywords = data.criticalMissingKeywords && data.criticalMissingKeywords.length > 0;
-              const hasAnyKeywords = data.missingKeywords.length > 0;
-              if (!hasAnyKeywords && !hasGapGroups) return null;
-              return (
-                <li className="flex items-start gap-2">
-                  <span className="text-zinc-500 mt-0.5">{data.atsRisks.length > 0 ? "2." : "1."}</span>
-                  <span>
-                    {hasGapGroups
-                      ? "Address gaps by theme—prioritize the most critical areas for this role, then add other missing keywords where they naturally fit in your experience."
-                      : hasCriticalKeywords
-                      ? "Address critical gaps first—these are the most important for this role. Then add other missing keywords where they naturally fit in your experience."
-                      : "Add missing keywords where they naturally fit in your experience. Only include terms that accurately describe your work."}
-                  </span>
-                </li>
-              );
-            })()}
+            {(data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">{data.atsRisks.length > 0 ? "2." : "1."}</span>
+                <span>Address the critical gaps above where you have experience—they matter most for this role.</span>
+              </li>
+            )}
             {canPair && (
               <li className="flex items-start gap-2">
-                <span className="text-zinc-500 mt-0.5">{data.atsRisks.length > 0 || data.missingKeywords.length > 0 || (data.gapGroups && data.gapGroups.length > 0) ? "3." : data.atsRisks.length > 0 ? "2." : "1."}</span>
-                <span>Consider using the suggested bullet rewrites to strengthen your resume&apos;s impact.</span>
-              </li>
-            )}
-            {summary && (
-              <li className="flex items-start gap-2">
-                <span className="text-zinc-500 mt-0.5">
-                  {data.atsRisks.length > 0 || data.missingKeywords.length > 0 || (data.gapGroups && data.gapGroups.length > 0) || canPair
-                    ? "4."
-                    : data.atsRisks.length > 0
-                    ? "2."
-                    : "1."}
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">
+                  {data.atsRisks.length > 0 || (data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 ? "3." : "1."}
                 </span>
-                <span>Use the fit summary in your application or cover letter to highlight your most relevant experience.</span>
+                <span>Use the stronger bullet versions above to improve impact and role alignment.</span>
               </li>
             )}
-            {!data.atsRisks.length && !data.missingKeywords.length && !canPair && !summary && !(data.gapGroups && data.gapGroups.length > 0) && (
+            {summary && (data.applyRecommendation === "apply_now" || data.applyRecommendation === "apply_with_edits") && (
               <li className="flex items-start gap-2">
-                <span className="text-zinc-500 mt-0.5">1.</span>
-                <span>Review your match score and consider how your experience aligns with the role requirements.</span>
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">
+                  {data.atsRisks.length > 0 || (data.criticalMissingKeywords?.length ?? 0) + (data.criticalMissingSkills?.length ?? 0) > 0 || canPair ? "4." : "1."}
+                </span>
+                <span>Drop the fit summary into your application or cover letter.</span>
+              </li>
+            )}
+            {data.applyRecommendation === "low_priority" && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
+                <span>Run a scan on roles that align more closely with your experience—you&apos;ll get clearer, more actionable reports.</span>
+              </li>
+            )}
+            {!data.atsRisks.length && !(data.criticalMissingKeywords?.length ?? 0) && !(data.criticalMissingSkills?.length ?? 0) && !canPair && data.applyRecommendation !== "low_priority" && !(summary && (data.applyRecommendation === "apply_now" || data.applyRecommendation === "apply_with_edits")) && (
+              <li className="flex items-start gap-2">
+                <span className="text-[var(--text-faint)] mt-0.5 shrink-0">1.</span>
+                <span>Use the report above to polish and apply when ready.</span>
               </li>
             )}
           </ul>

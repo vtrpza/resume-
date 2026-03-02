@@ -78,28 +78,28 @@ export function Paywall({
         role="dialog"
         aria-modal="true"
         aria-labelledby={DIALOG_TITLE_ID}
-        className="w-full max-w-md rounded-xl bg-zinc-900 p-6 shadow-xl ring-1 ring-zinc-800"
+        className="w-full max-w-md rounded-xl card-surface border border-[var(--border-subtle)] p-6 shadow-xl"
       >
-        <h2 id={DIALOG_TITLE_ID} className="text-lg font-semibold text-white">
+        <h2 id={DIALOG_TITLE_ID} className="text-lg font-semibold text-[var(--text-primary)]">
           One free scan done—your next one&apos;s $2
         </h2>
-        <p className="mt-2 text-sm text-zinc-400">
-          Every role has different wording. Check the next one before you
-          apply—same full report, $2, one-time. No subscription.
+        <p className="mt-3 text-sm text-[var(--text-secondary)]">
+          Every role has different wording. Check the next one before you apply—same full report: match score, gaps, cover letter, and full experience rewrite.
         </p>
-        <p className="mt-2 text-xs text-zinc-500">
-          One-time charge. No recurring billing.
-        </p>
+        <div className="mt-4 flex items-baseline gap-2">
+          <span className="font-display text-2xl font-normal text-[var(--accent)]">$2</span>
+          <span className="text-xs text-[var(--text-faint)]">one-time · no subscription</span>
+        </div>
         <div className="mt-6 space-y-3">
           <button
             type="button"
             onClick={handlePay}
             disabled={isBusy}
-            className="focus-ring active:opacity-90 w-full rounded-lg bg-white py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="focus-ring active:opacity-90 w-full rounded-lg bg-[var(--accent)] py-3.5 text-sm font-semibold text-[var(--bg-deep)] transition hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isBusy ? (
               <span className="flex items-center justify-center gap-3">
-                <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-zinc-900 border-t-transparent" aria-hidden />
+                <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-[var(--bg-deep)] border-t-transparent" aria-hidden />
                 <span>Redirecting to checkout…</span>
               </span>
             ) : (
@@ -111,7 +111,7 @@ export function Paywall({
           type="button"
           onClick={onClose}
           disabled={isBusy}
-          className="focus-ring mt-4 flex min-h-[44px] w-full items-center justify-center text-sm text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+          className="focus-ring mt-4 flex min-h-[44px] w-full items-center justify-center text-sm text-[var(--text-faint)] hover:text-[var(--text-secondary)] disabled:opacity-50"
         >
           Not now
         </button>

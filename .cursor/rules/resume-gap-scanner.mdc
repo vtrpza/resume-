@@ -11,7 +11,7 @@ Build a U.S.-focused SaaS called Resume Match.
 This is a narrow wedge product:
 - user uploads a resume PDF
 - user pastes a job description
-- app returns:
+- app returns (same for free and paid scans):
   - match score
   - missing keywords
   - missing skills
@@ -19,7 +19,8 @@ This is a narrow wedge product:
   - weak bullets
   - rewritten bullets
   - tailored summary
-  - premium full rewrite / cover letter behind paywall
+  - tailored cover letter
+  - full experience rewrite (all bullets rewritten for the role)
 
 This is NOT:
 - a job board
@@ -53,16 +54,15 @@ Use:
 - OpenTelemetry
 
 ## AI architecture
-Use two-model app architecture:
+Use two-model app architecture (OpenAI API):
 
-1. Default runtime model:
-- OpenAI GPT-5-mini
-- use strict structured JSON output
-- use for analysis, extraction, ATS risks, missing keywords, bullet rewrites, tailored summary
+1. Default runtime model: **gpt-4o-mini**
+- Strict structured JSON output
+- Used for: analysis, match score, ATS risks, missing keywords/skills, weak-bullet rewrites, tailored summary
 
-2. Premium / fallback runtime model:
-- OpenAI GPT-5
-- use for full rewrite, cover letter, low-confidence cases, extraction fallback
+2. Premium / fallback model: **gpt-4o**
+- Used for: cover letter + full experience rewrite (every scan, after analysis)
+- Also used as fallback when gpt-4o-mini has low confidence, extraction quality "low", or validation failure
 
 Never fabricate candidate experience.
 Never invent achievements that are not present in the resume.
@@ -82,7 +82,7 @@ Avoid claims like:
 - instant job offers
 
 ## Monetization
-$2 per scan. One free scan, then $2 per report. No subscriptions.
+$2 per scan. One free scan, then $2 per report. No subscriptions. Free and premium features are the same.
 
 ## Analytics events
 Track:

@@ -12,6 +12,7 @@ export type ScanStage =
   | "jd_validation"
   | "llm_analysis"
   | "analysis_validation"
+  | "premium_generate"
   | "result";
 
 /** Set current scan stage for error grouping and debugging. */
@@ -41,6 +42,7 @@ export function setScanContext(ctx: {
   edgeCaseGarbled?: boolean;
   edgeCaseVeryLong?: boolean;
   edgeCaseNonEnglish?: boolean;
+  premiumValid?: boolean;
 }): void {
   Sentry.setContext("scan", ctx);
 }

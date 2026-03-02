@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "motion/react";
 
 const ROTATING_TIPS = [
   "We never store your resume or job description.",
-  "Checking for ATS risk and missing skills.",
-  "Tailoring bullets to job keywords improves match scores.",
+  "Checking for ATS risks, keyword gaps, and weak bullets.",
+  "Building your apply recommendation based on this specific role.",
 ] as const;
 
 const TIP_INTERVAL_MS = 5500;
@@ -37,39 +38,52 @@ export function ScanLoadingView({
       aria-label={`Analyzing your match. Step ${loadingStep + 1} of ${steps.length}. ${steps[loadingStep] ?? ""}`}
       className="flex min-h-[420px] flex-col"
     >
-      <h2 className="text-xl font-semibold text-white sm:text-2xl">
+      <motion.h2
+        className="text-xl font-semibold text-[var(--text-primary)] sm:text-2xl"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         Analyzing your match…
-      </h2>
-      <p className="mt-1 text-sm text-zinc-500">
-        Usually 10–20 seconds. Hang tight.
+      </motion.h2>
+      <p className="mt-1 text-sm text-[var(--text-muted)]">
+        Usually 15–25 seconds. Hang tight.
       </p>
 
-      {/* Central visual: two overlapping doc shapes with subtle shimmer */}
+      {/* Central visual: overlapping doc shapes with motion */}
       <div
         className="relative mt-8 flex h-24 items-center justify-center sm:mt-10 sm:h-28"
         aria-hidden
       >
         <div className="relative h-16 w-20 sm:h-20 sm:w-24">
-          <div
-            className="absolute inset-0 rounded-lg border border-zinc-600/80 bg-zinc-800/60"
-            style={{ transform: "rotate(-6deg)" }}
+          <motion.div
+            className="absolute inset-0 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]"
+            style={{ rotate: -6 }}
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
           />
-          <div
-            className="absolute inset-0 rounded-lg border border-zinc-500/80 bg-zinc-700/50"
-            style={{ transform: "rotate(4deg)" }}
+          <motion.div
+            className="absolute inset-0 rounded-lg border border-[var(--border-muted)] bg-[var(--bg-surface-hover)]"
+            style={{ rotate: 4 }}
+            animate={{ opacity: [0.8, 1, 0.8] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
           />
-          <div
-            className="scan-shimmer absolute inset-0 rounded-lg border border-zinc-500/40 bg-gradient-to-br from-zinc-600/30 to-transparent opacity-60"
-            style={{ transform: "rotate(4deg)" }}
+          <motion.div
+            className="absolute inset-0 rounded-lg border border-[var(--accent)]/30 bg-gradient-to-br from-[var(--accent)]/10 to-transparent"
+            style={{ rotate: 4 }}
+            animate={{ opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
           />
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="mt-6 w-full overflow-hidden rounded-full bg-zinc-800/80">
-        <div
-          className="h-1.5 rounded-full bg-white/90 transition-[width] duration-500 ease-out"
-          style={{ width: `${progressPercent}%` }}
+      {/* Progress bar with spring */}
+      <div className="mt-6 w-full overflow-hidden rounded-full bg-[var(--bg-surface-hover)]">
+        <motion.div
+          className="h-1.5 rounded-full bg-[var(--accent)]"
+          initial={{ width: 0 }}
+          animate={{ width: `${progressPercent}%` }}
+          transition={{ type: "spring", stiffness: 50, damping: 25 }}
         />
       </div>
 
@@ -79,27 +93,30 @@ export function ScanLoadingView({
           const isCompleted = i < loadingStep;
           const isCurrent = i === loadingStep;
           return (
-            <li
+            <motion.li
               key={i}
               className="flex items-center gap-3 text-sm"
               aria-current={isCurrent ? "step" : undefined}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.05, duration: 0.3 }}
             >
               <span
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--border-subtle)] transition-colors"
                 aria-hidden
               >
                 {isCompleted ? (
-                  <span className="text-emerald-400" aria-hidden>
-                    ✓
-                  </span>
+                  <span className="text-emerald-400" aria-hidden>✓</span>
                 ) : isCurrent ? (
-                  <span
-                    className="h-2 w-2 rounded-full bg-white animate-pulse-soft"
+                  <motion.span
+                    className="h-2 w-2 rounded-full bg-[var(--accent)]"
                     aria-hidden
+                    animate={{ opacity: [1, 0.4, 1], scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
                   />
                 ) : (
                   <span
-                    className="h-2 w-2 rounded-full bg-zinc-600"
+                    className="h-2 w-2 rounded-full bg-[var(--border-subtle)]"
                     aria-hidden
                   />
                 )}
@@ -107,23 +124,30 @@ export function ScanLoadingView({
               <span
                 className={
                   isCompleted
-                    ? "text-zinc-500"
+                    ? "text-[var(--text-faint)]"
                     : isCurrent
-                      ? "font-medium text-white"
-                      : "text-zinc-600"
+                      ? "font-medium text-[var(--text-primary)]"
+                      : "text-[var(--text-faint)]"
                 }
               >
                 {label}
               </span>
-            </li>
+            </motion.li>
           );
         })}
       </ul>
 
       {/* Rotating tip */}
-      <p className="mt-6 text-xs text-zinc-500" aria-live="polite">
+      <motion.p
+        className="mt-6 text-xs text-[var(--text-faint)]"
+        aria-live="polite"
+        key={tipIndex}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         {ROTATING_TIPS[tipIndex]}
-      </p>
+      </motion.p>
     </div>
   );
 }

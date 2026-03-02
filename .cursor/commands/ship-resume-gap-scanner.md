@@ -16,9 +16,9 @@ Workflow:
 Current priorities:
 1. landing page and product UX refinement
 2. sample report and result page refinement
-3. first free scan premium experience
+3. first free scan full premium experience (cover letter + full rewrite; implemented)
 4. PDF extraction and normalization reliability
-5. GPT-5-mini structured analysis quality and groundedness
+5. gpt-4o-mini structured analysis quality and groundedness
 6. PostHog integration and funnel visibility
 7. Sentry integration and error visibility
 8. simple one-time Stripe checkout for $2 per additional scan
