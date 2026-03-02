@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CtaLink } from "@/components/CtaLink";
 
 export function Header() {
   return (
@@ -10,9 +11,18 @@ export function Header() {
         >
           Resume Gap Scanner
         </Link>
-        <span className="hidden text-sm text-zinc-500 sm:inline">
-          Match your resume to the job
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="hidden text-sm text-zinc-500 sm:inline">
+            Match your resume to the job
+          </span>
+          <CtaLink
+            href="/scan"
+            cta="header_scan"
+            className="min-h-[44px] flex items-center rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+          >
+            Scan resume
+          </CtaLink>
+        </div>
       </div>
     </header>
   );
